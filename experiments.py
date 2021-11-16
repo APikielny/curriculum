@@ -6,6 +6,7 @@ from agent import QLearningAgent
 from svetlik_gridworld import SvetlikGridWorldMDP
 import matplotlib.pyplot as plt
 import numpy as np
+from visualizer import show_gridworld_q_func
 
 def get_policy_reward(policy, mdp, steps):
     state = mdp.get_init_state()
@@ -134,6 +135,7 @@ def run_agent_mp(episodes, steps, return_dict, index):
     ql_agent = QLearningAgent(actions=mdp.get_actions())
     print(f'running agent {index}')
     res = run_single_agent_on_mdp(ql_agent, mdp, episodes, steps, None)
+    # show_gridworld_q_func(5, 5, ql_agent)
     # mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
     # res = run_single_agent_on_mdp(ql_agent, mdp, episodes * 5, steps, None)
     return_dict[index] = res[2] # value_per_episode
