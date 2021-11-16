@@ -55,12 +55,12 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
         # Compute initial state/reward.
         state = mdp.get_init_state()
         reward = 0
-        episode_start_time = time.clock()
+        episode_start_time = time.perf_counter()
 
         for step in range(1, steps + 1):
 
             # step time
-            step_start = time.clock()
+            step_start = time.perf_counter()
 
             # Compute the agent's policy.
             action = agent.act(state, reward)
@@ -73,7 +73,7 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
 
                 # if episodes == 1 and not reset_at_terminal and experiment is not None and action != "terminate":
                 #     # Self loop if we're not episodic or resetting and in a terminal state.
-                #     experiment.add_experience(agent, state, action, 0, state, time_taken=time.clock()-step_start)
+                #     experiment.add_experience(agent, state, action, 0, state, time_taken=time.perf_counter()-step_start)
                 #     continue
                 break
 
@@ -89,7 +89,7 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
                 reward_to_track = mdp.get_gamma()**(step + 1 + episode*steps) * reward if track_disc_reward else reward
                 reward_to_track = round(reward_to_track, 5)
 
-                experiment.add_experience(agent, state, action, reward_to_track, next_state, time_taken=time.clock() - step_start)
+                experiment.add_experience(agent, state, action, reward_to_track, next_state, time_taken=time.perf_counter() - step_start)
 
             expected_value_per_step.append(get_policy_reward(agent.get_max_q_action, mdp, steps))
 
@@ -130,21 +130,17 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
     return False, steps, value_per_episode, expected_value_per_step
 
 def run_agent_mp(episodes, steps, return_dict, index):
-    # mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
     mdp = SvetlikGridWorldMDP(pit_locs=[], fire_locs=[], width=5, height=5, treasure_locs=[(5, 5)]) # ~750 steps to converge
     ql_agent = QLearningAgent(actions=mdp.get_actions())
     print(f'running agent {index}')
     res = run_single_agent_on_mdp(ql_agent, mdp, episodes, steps, None)
-    mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
-    res = run_single_agent_on_mdp(ql_agent, mdp, episodes * 5, steps, None)
-    return_dict[index] = res[3]
-
+    # mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
+    # res = run_single_agent_on_mdp(ql_agent, mdp, episodes * 5, steps, None)
+    return_dict[index] = res[2] # value_per_episode
 
 def main():
 
     start = time.time()
-    
-    rewards = np.zeros(100000)
 
     jobs = []
 
@@ -152,8 +148,9 @@ def main():
     return_dict = manager.dict()
 
     num_agents = 4
-    episodes = 1000
+    episodes = 300
     steps = 200
+    reward_at_episode = np.zeros(episodes)
 
     # 1 agent: 19s
     # 5 agents: 27s
@@ -170,11 +167,10 @@ def main():
     
     for i in range(len(jobs)):
         jobs[i].join()
-        rewards[:len(return_dict[i])] += np.array(return_dict[i]) / num_agents
-        rewards[len(return_dict[i]):] += return_dict[i][-1] / num_agents
-        
+        reward_at_episode[:len(return_dict[i])] += np.array(return_dict[i]) / num_agents
+
     print(time.time() - start)
-    plt.plot(range(100000), np.clip(rewards, -500, 500))
+    plt.plot(range(episodes), np.clip(reward_at_episode, -500, 500))
     plt.show()
 
 if __name__ == '__main__':

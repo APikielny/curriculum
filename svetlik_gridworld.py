@@ -7,10 +7,10 @@ import sys
 # Other imports.
 from simple_rl.tasks.grid_world.GridWorldMDPClass import GridWorldMDP
 from simple_rl.tasks.grid_world.GridWorldStateClass import GridWorldState
-# from simple_rl.run_experiments import run_agents_on_mdp 
+# from simple_rl.run_experiments import run_agents_on_mdp
+from typing import Tuple
 
 class SvetlikGridWorldMDP(GridWorldMDP):
-
     def __init__(self,
                 fire_locs=[],
                 pit_locs=[],
@@ -41,25 +41,34 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         self.fire_locs = fire_locs
         self.pit_locs = pit_locs
         self.treasure_locs = treasure_locs
-        self.init_state = self.get_state_with_type(init_loc[0], init_loc[1])
+        self.init_state = self.get_state(init_loc[0], init_loc[1])
         self.empty_reward = empty_reward
         self.next_to_fire_reward = next_to_fire_reward
         self.fire_reward = fire_reward
         self.pit_reward = pit_reward
         self.treasure_reward = treasure_reward
 
-    def get_state_with_type(self, x, y):
-        next_to_fire = (x + 1, y) in self.fire_locs \
-                        or (x - 1, y) in self.fire_locs \
-                        or (x, y + 1) in self.fire_locs \
-                        or (x, y - 1) in self.fire_locs
-        if ((x, y) in self.fire_locs):
-            return SvetlikGridWorldState(x, y, 'fire', next_to_fire)
-        if ((x, y) in self.pit_locs):
-            return SvetlikGridWorldState(x, y, 'pit', next_to_fire)
-        if ((x, y) in self.treasure_locs):
-            return SvetlikGridWorldState(x, y, 'treasure', next_to_fire)
-        return SvetlikGridWorldState(x, y, 'empty', next_to_fire)
+    def get_state(self, x, y):
+        return GridWorldState(x=x, y=y)
+
+    def state_is_goal(self, state: GridWorldState) -> bool:
+        return (state.x, state.y) in self.goal_locs
+
+    def state_is_treasure(self, state: GridWorldState) -> bool:
+        return (state.x, state.y) in self.treasure_locs
+
+    def state_is_fire(self, state: GridWorldState) -> bool:
+        return (state.x, state.y) in self.fire_locs
+
+    def state_is_pit(self, state: GridWorldState) -> bool:
+        return (state.x, state.y) in self.pit_locs
+
+    def state_is_next_to_fire(self, state: GridWorldState) -> bool:
+        x, y = state.x, state.y
+        return ((x + 1, y) in self.fire_locs
+               or (x - 1, y) in self.fire_locs
+               or (x, y + 1) in self.fire_locs
+               or (x, y - 1) in self.fire_locs)
 
     def _reward_func(self, state, action, next_state):
         '''
@@ -72,13 +81,16 @@ class SvetlikGridWorldMDP(GridWorldMDP):
             (float)
         '''
 
-        reward = self.next_to_fire_reward if next_state.next_to_fire else 0
+        reward = 0
+        next_state_loc = next_state.x, next_state.y
 
-        if next_state.type == 'fire':
+        if self.state_is_next_to_fire(next_state):
+            reward += self.next_to_fire_reward
+        if self.state_is_fire(next_state):
             reward += self.fire_reward
-        elif next_state.type == 'pit':
+        elif self.state_is_pit(next_state):
             reward += self.pit_reward
-        elif next_state.type == 'treasure':
+        elif self.state_is_treasure(next_state):
             reward += self.treasure_reward
         else:
             reward += self.empty_reward
@@ -97,42 +109,23 @@ class SvetlikGridWorldMDP(GridWorldMDP):
             return state
 
         if action == "up" and state.y < self.height:
-            next_state = self.get_state_with_type(state.x, state.y + 1)
+            next_state = self.get_state(state.x, state.y + 1)
         elif action == "down" and state.y > 1:
-            next_state = self.get_state_with_type(state.x, state.y - 1)
+            next_state = self.get_state(state.x, state.y - 1)
         elif action == "right" and state.x < self.width:
-            next_state = self.get_state_with_type(state.x + 1, state.y)
+            next_state = self.get_state(state.x + 1, state.y)
         elif action == "left" and state.x > 1:
-            next_state = self.get_state_with_type(state.x - 1, state.y)
+            next_state = self.get_state(state.x - 1, state.y)
         else:
-            next_state = self.get_state_with_type(state.x, state.y)
+            next_state = self.get_state(state.x, state.y)
 
-        if (next_state.x, next_state.y) in self.goal_locs:
+        if self.state_is_goal(next_state):
             next_state.set_terminal(True)
 
         return next_state
 
-
-class SvetlikGridWorldState(GridWorldState):
-    ''' Class for Svetlik Grid World States '''
-
-    def __init__(self, x, y, type='empty', next_to_fire=False):
-        GridWorldState.__init__(self, x=x, y=y)
-        self.type = type
-        self.next_to_fire = next_to_fire
-
-
-    def __str__(self):
-        return "s: (" + str(self.x) + "," + str(self.y) + "," + str(self.color) + ")"
-
-    def __eq__(self, other):
-        return isinstance(other, SvetlikGridWorldState) and self.x == other.x and self.y == other.y and self.type == other.type
-
-    def __hash__(self):
-        return hash((self.x, self.y, self.type))
-
 def main(open_plot=True):
-    
+
 
     # Setup MDP, Agents.
     mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], width=10, height=10, treasure_locs=[(10, 10)])
