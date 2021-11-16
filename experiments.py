@@ -134,10 +134,14 @@ def run_agent_mp(episodes, steps, return_dict, index):
     mdp = SvetlikGridWorldMDP(pit_locs=[], fire_locs=[], width=5, height=5, treasure_locs=[(5, 5)]) # ~750 steps to converge
     ql_agent = QLearningAgent(actions=mdp.get_actions())
     print(f'running agent {index}')
-    res = run_single_agent_on_mdp(ql_agent, mdp, episodes, steps, None)
-    # show_gridworld_q_func(5, 5, ql_agent)
-    # mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
-    # res = run_single_agent_on_mdp(ql_agent, mdp, episodes * 5, steps, None)
+
+    # source learning (disabled)
+    # res = run_single_agent_on_mdp(ql_agent, mdp, episodes, steps, None)
+
+    # target learning
+    mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
+    res = run_single_agent_on_mdp(ql_agent, mdp, episodes * 5, steps, None)
+    show_gridworld_q_func(5, 5, ql_agent, mdp)
     return_dict[index] = res[2] # value_per_episode
 
 def main():
@@ -149,8 +153,8 @@ def main():
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
 
-    num_agents = 4
-    episodes = 300
+    num_agents = 1
+    episodes = 100
     steps = 200
     reward_at_episode = np.zeros(episodes)
 
@@ -172,8 +176,8 @@ def main():
         reward_at_episode[:len(return_dict[i])] += np.array(return_dict[i]) / num_agents
 
     print(time.time() - start)
-    plt.plot(range(episodes), np.clip(reward_at_episode, -500, 500))
-    plt.show()
+    # plt.plot(range(episodes), np.clip(reward_at_episode, -500, 500))
+    # plt.show()
 
 if __name__ == '__main__':
     main()
