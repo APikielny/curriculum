@@ -4,8 +4,11 @@ import multiprocessing
 
 from agent import QLearningAgent
 from svetlik_gridworld import SvetlikGridWorldMDP
+from environments import SvetlikGridWorldEnvironments
 import matplotlib.pyplot as plt
 import numpy as np
+import math
+from scipy.interpolate import make_interp_spline, BSpline
 from visualizer import show_gridworld_q_func
 
 def get_policy_reward(policy, mdp, steps):
@@ -130,22 +133,36 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
 
     return False, steps, value_per_episode, expected_value_per_step
 
-def run_agent_mp(episodes, steps, return_dict, index):
-    mdp = SvetlikGridWorldMDP(pit_locs=[], fire_locs=[], width=5, height=5, treasure_locs=[(5, 5)]) # ~750 steps to converge
-    ql_agent = QLearningAgent(actions=mdp.get_actions())
+def run_agent_mp(target_mdp,
+                 target_episodes,
+                 steps,
+                 return_dict,
+                 index,
+                 source_mdp=None,
+                 source_episodes=0):
+    ql_agent = QLearningAgent(actions=target_mdp.get_actions())
     print(f'running agent {index}')
 
-    # source learning (disabled)
-    # res = run_single_agent_on_mdp(ql_agent, mdp, episodes, steps, None)
+    # source learning
+    if source_mdp:
+        run_single_agent_on_mdp(ql_agent, source_mdp, source_episodes, steps, None)
+        show_gridworld_q_func(ql_agent, source_mdp, filename="vis_source.png")
+    source_value_per_episode = [-math.inf for i in range(source_episodes)]
 
     # target learning
-    mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], fire_locs=[(2, 4), (3, 4)], width=5, height=5, treasure_locs=[(5, 5)]) # ~900 steps to converge
-    res = run_single_agent_on_mdp(ql_agent, mdp, episodes * 5, steps, None)
-    show_gridworld_q_func(5, 5, ql_agent, mdp)
-    return_dict[index] = res[2] # value_per_episode
+    res = run_single_agent_on_mdp(ql_agent, target_mdp, target_episodes, steps, None)
+    show_gridworld_q_func(ql_agent, target_mdp, filename="vis_target.png")
+    target_value_per_episode = res[2]
 
-def main():
+    return_dict[index] = source_value_per_episode + target_value_per_episode
 
+def reward_by_episode(target_mdp,
+                      target_episodes,
+                      source_mdp=None,
+                      source_episodes=0,
+                      num_trials=1,
+                      max_steps=200):
+    """Runs Q learning, reports data on [expected reward of optimal policy] vs. episode"""
     start = time.time()
 
     jobs = []
@@ -153,31 +170,60 @@ def main():
     manager = multiprocessing.Manager()
     return_dict = manager.dict()
 
-    num_agents = 1
-    episodes = 100
-    steps = 200
-    reward_at_episode = np.zeros(episodes)
+    reward_at_episode = np.zeros(source_episodes + target_episodes)
 
-    # 1 agent: 19s
-    # 5 agents: 27s
-    # 10 agents: 44s
-
-    for i in range(num_agents):
+    for i in range(num_trials):
         p = multiprocessing.Process(target=run_agent_mp, name=f'agent{i}', args=(
-            episodes,
-            steps,
+            target_mdp,
+            target_episodes,
+            max_steps,
             return_dict,
-            i))
+            i,
+            source_mdp,
+            source_episodes))
         jobs.append(p)
         p.start()
-    
+
     for i in range(len(jobs)):
         jobs[i].join()
-        reward_at_episode[:len(return_dict[i])] += np.array(return_dict[i]) / num_agents
+        reward_at_episode[:len(return_dict[i])] += np.array(return_dict[i]) / num_trials
 
     print(time.time() - start)
-    # plt.plot(range(episodes), np.clip(reward_at_episode, -500, 500))
-    # plt.show()
+
+    return reward_at_episode
+
+def clip_and_smooth(reward_data):
+    n_episodes = len(reward_data)
+    x = np.array(list(range(n_episodes)))
+    y = np.clip(reward_data, -500, 500)
+    y_smooth = [0 for _ in y]
+    for i in range(n_episodes):
+        smooth_min = max(0, i - 5)
+        smooth_max = min(n_episodes - 1, i + 5)
+        y_smooth[i] = sum(y[smooth_min:smooth_max]) / (smooth_max - smooth_min)
+    return y_smooth
+
+def main():
+    num_trials = 5
+    source_episodes = 20
+    target_episodes = 100
+
+    source_mdp = SvetlikGridWorldEnvironments.empty_55()
+    target_mdp = SvetlikGridWorldEnvironments.target_55()
+
+    reward_target = reward_by_episode(target_mdp, source_episodes + target_episodes, num_trials=num_trials)
+    reward_transfer = reward_by_episode(target_mdp, target_episodes, num_trials=num_trials,
+                                        source_mdp=source_mdp, source_episodes=source_episodes)
+
+    x = range(source_episodes + target_episodes)
+    y1 = clip_and_smooth(reward_target)
+    y2 = clip_and_smooth(reward_transfer)
+
+    fig, ax = plt.subplots()
+    ax.plot(x, y1, color='red', label="no transfer")
+    ax.plot(x, y2, color='blue', label="transfer")
+    ax.legend()
+    plt.show()
 
 if __name__ == '__main__':
     main()

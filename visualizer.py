@@ -4,14 +4,13 @@ from simple_rl.tasks.grid_world.GridWorldStateClass import GridWorldState
 from svetlik_gridworld import SvetlikGridWorldMDP
 from matplotlib import pyplot as plt
 
-def show_gridworld_q_func(grid_height: int,
-                          grid_width: int,
-                          q_learner: QLearningAgent,
-                          gw: SvetlikGridWorldMDP):
+def show_gridworld_q_func(q_learner: QLearningAgent,
+                          gw: SvetlikGridWorldMDP,
+                          filename=None):
     """Visualize q function + optimal policy in a SvetlikGridWorldMDP environment"""
-    q_vals = np.zeros((grid_height, grid_width))
-    for x_idx in range(grid_width):
-        for y_idx in range(grid_height):
+    q_vals = np.zeros((gw.height, gw.width))
+    for x_idx in range(gw.height):
+        for y_idx in range(gw.height):
             state = GridWorldState(x=x_idx+1, y=y_idx+1)
             q_vals[x_idx][y_idx] = q_learner.get_max_q_value(state)
 
@@ -19,13 +18,13 @@ def show_gridworld_q_func(grid_height: int,
     pos = ax.imshow(q_vals.transpose(), cmap="RdYlGn", origin="lower")
     fig.colorbar(pos, ax=ax)
 
-    ax.set_xticks(np.arange(grid_width + 1) - 0.5, minor=True)
-    ax.set_yticks(np.arange(grid_height + 1) - 0.5, minor=True)
+    ax.set_xticks(np.arange(gw.width + 1) - 0.5, minor=True)
+    ax.set_yticks(np.arange(gw.height + 1) - 0.5, minor=True)
     ax.grid(which="minor")
     ax.tick_params(which="minor", size=0)
 
-    for x_idx in range(grid_width):
-        for y_idx in range(grid_height):
+    for x_idx in range(gw.width):
+        for y_idx in range(gw.height):
             state = gw.get_state(x_idx+1, y_idx+1)
             best_action = q_learner.get_max_q_action(state)
 
@@ -56,4 +55,7 @@ def show_gridworld_q_func(grid_height: int,
             # show q value text
             # plt.text(x_idx-0.3, y_idx, f"{q_vals[x_idx][y_idx]:.2f}")
 
-    plt.show()
+    if filename:
+        plt.savefig(filename)
+    else:
+        plt.show()
