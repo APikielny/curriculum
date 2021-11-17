@@ -8,14 +8,15 @@ def show_gridworld_q_func(grid_height: int,
                           grid_width: int,
                           q_learner: QLearningAgent,
                           gw: SvetlikGridWorldMDP):
-    grid = np.zeros((grid_height, grid_width))
-    for i in range(grid_height):
-        for j in range(grid_width):
-            grid[i][j] = q_learner.get_max_q_value(GridWorldState(x=i+1, y=j+1))
+    """Visualize q function + optimal policy in a SvetlikGridWorldMDP environment"""
+    q_vals = np.zeros((grid_height, grid_width))
+    for x_idx in range(grid_width):
+        for y_idx in range(grid_height):
+            state = GridWorldState(x=x_idx+1, y=y_idx+1)
+            q_vals[x_idx][y_idx] = q_learner.get_max_q_value(state)
 
-    data = np.ma.array(grid.reshape((grid_height, grid_width)), mask=grid == 0)
     fig, ax = plt.subplots()
-    pos = ax.imshow(data, cmap="Greens", origin="lower", vmin=0)
+    pos = ax.imshow(q_vals.transpose(), cmap="RdYlGn", origin="lower")
     fig.colorbar(pos, ax=ax)
 
     ax.set_xticks(np.arange(grid_width + 1) - 0.5, minor=True)
@@ -23,16 +24,36 @@ def show_gridworld_q_func(grid_height: int,
     ax.grid(which="minor")
     ax.tick_params(which="minor", size=0)
 
-    for i in range(grid_height):
-        for j in range(grid_width):
-            state = gw.get_state(i+1,j+1)
-            if gw.state_is_fire(state):
-                plt.text(i, j, "F")
-            elif gw.state_is_pit(state):
-                plt.text(i, j, "P")
-            elif gw.state_is_treasure(state):
-                plt.text(i, j, "T")
+    for x_idx in range(grid_width):
+        for y_idx in range(grid_height):
+            state = gw.get_state(x_idx+1, y_idx+1)
+            best_action = q_learner.get_max_q_action(state)
 
-            # plt.text(i, j, q_learner.get_max_q_action(GridWorldState(x=i+1, y=j+1)))
+            # show state features
+            if gw.state_is_fire(state):
+                plt.text(x_idx+0.2, y_idx+0.2, f"F")
+            elif gw.state_is_pit(state):
+                plt.text(x_idx+0.2, y_idx+0.2, f"P")
+            elif gw.state_is_treasure(state):
+                plt.text(x_idx+0.2, y_idx+0.2, f"T")
+            else:
+                # show coordinates for empty states
+                # coords = f"{x_idx+1}, {y_idx+1}"
+                # plt.text(x_idx-0.2, y_idx+0.2, f"{coords}")
+                pass
+
+            # show optimal policy
+            arrow_args = { "head_width": 0.1, "head_length": 0.1 }
+            if best_action == "left":
+                plt.arrow(x_idx+0.2, y_idx, -0.2, 0, **arrow_args)
+            elif best_action == "right":
+                plt.arrow(x_idx-0.2, y_idx, 0.2, 0, **arrow_args)
+            elif best_action == "up":
+                plt.arrow(x_idx, y_idx-0.2, 0, 0.2, **arrow_args)
+            elif best_action == "down":
+                plt.arrow(x_idx, y_idx+0.2, 0, -0.2, **arrow_args)
+
+            # show q value text
+            # plt.text(x_idx-0.3, y_idx, f"{q_vals[x_idx][y_idx]:.2f}")
 
     plt.show()
