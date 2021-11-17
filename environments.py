@@ -2,7 +2,8 @@ from svetlik_gridworld import SvetlikGridWorldMDP
 
 class SvetlikGridWorldEnvironments:
     @staticmethod
-    def empty_55() -> SvetlikGridWorldMDP:
+    def source_55() -> SvetlikGridWorldMDP:
+        """Empty (no obstacles)"""
         return SvetlikGridWorldMDP(
             pit_locs=[],
             fire_locs=[],

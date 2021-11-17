@@ -146,12 +146,12 @@ def run_agent_mp(target_mdp,
     # source learning
     if source_mdp:
         run_single_agent_on_mdp(ql_agent, source_mdp, source_episodes, steps, None)
-        show_gridworld_q_func(ql_agent, source_mdp, filename="vis_source.png")
+        show_gridworld_q_func(ql_agent, source_mdp, filename="figures/vis_source.png")
     source_value_per_episode = [-math.inf for i in range(source_episodes)]
 
     # target learning
     res = run_single_agent_on_mdp(ql_agent, target_mdp, target_episodes, steps, None)
-    show_gridworld_q_func(ql_agent, target_mdp, filename="vis_target.png")
+    show_gridworld_q_func(ql_agent, target_mdp, filename="figures/vis_target.png")
     target_value_per_episode = res[2]
 
     return_dict[index] = source_value_per_episode + target_value_per_episode
@@ -204,12 +204,12 @@ def clip_and_smooth(reward_data):
     return y_smooth
 
 def main():
-    num_trials = 5
-    source_episodes = 20
-    target_episodes = 100
+    num_trials = 10
+    source_episodes = 200
+    target_episodes = 500
 
-    source_mdp = SvetlikGridWorldEnvironments.empty_55()
-    target_mdp = SvetlikGridWorldEnvironments.target_55()
+    source_mdp = SvetlikGridWorldEnvironments.source_77()
+    target_mdp = SvetlikGridWorldEnvironments.target_77()
 
     reward_target = reward_by_episode(target_mdp, source_episodes + target_episodes, num_trials=num_trials)
     reward_transfer = reward_by_episode(target_mdp, target_episodes, num_trials=num_trials,
@@ -223,6 +223,7 @@ def main():
     ax.plot(x, y1, color='red', label="no transfer")
     ax.plot(x, y2, color='blue', label="transfer")
     ax.legend()
+    plt.savefig("figures/reward.png")
     plt.show()
 
 if __name__ == '__main__':
