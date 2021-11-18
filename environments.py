@@ -60,3 +60,25 @@ class SvetlikGridWorldEnvironments:
     def target_maze() -> SvetlikGridWorldMDP:
         """Must pass next to fire to win"""
         return SvetlikGridWorldMDP(**SvetlikGridWorldEnvironments.maze_args)
+
+    args_1010 = {
+        "pit_locs": [(2, 2), (5, 2), (6, 2), (7, 2), (8, 2), (9, 2),
+                    (2, 4), (2, 5), (6, 5), (7, 5), (7, 7), (2, 8),
+                    (3, 9), (8, 5), (8, 7), (8, 9), (9, 5), (10, 5),
+                    (9, 7), (9, 9), (10, 9)],
+        "fire_locs": [(2, 3), (3, 3), (3, 6), (5, 8)],
+        "width": 10,
+        "height": 10,
+        "default_reward": -5,
+        "treasure_locs": [(10, 10)]
+    }
+
+    @staticmethod
+    def source_1010() -> SvetlikGridWorldMDP:
+        """All obstacles removed except row 3"""
+        return SvetlikGridWorldMDP(**SvetlikGridWorldEnvironments.args_1010, init_loc=(5,5))
+
+    @staticmethod
+    def target_1010() -> SvetlikGridWorldMDP:
+        """Must pass next to fire to win"""
+        return SvetlikGridWorldMDP(**SvetlikGridWorldEnvironments.args_1010)

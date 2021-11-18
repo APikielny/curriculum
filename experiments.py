@@ -151,12 +151,12 @@ def run_agent_mdp(target_mdp,
     source_value_per_episode = [-math.inf for i in range(source_episodes)]
     if source_mdp:
         res_src = run_single_agent_on_mdp(ql_agent, source_mdp, source_episodes, steps, None)
-        show_gridworld_q_func(ql_agent, source_mdp, filename="figures/vis_source.png")
+        show_gridworld_q_func(source_mdp, ql_agent, filename="figures/vis_source.png")
         source_value_per_episode = res_src[3]
 
     # target learning
     res_targ = run_single_agent_on_mdp(ql_agent, target_mdp, total_episodes - source_episodes, steps, None)
-    show_gridworld_q_func(ql_agent, target_mdp, filename="figures/vis_target.png")
+    show_gridworld_q_func(target_mdp, ql_agent, filename="figures/vis_target.png")
     target_value_per_episode = res_targ[3]  # off policy
 
     source_reward_dict[index] = source_value_per_episode
@@ -214,14 +214,14 @@ def clip_and_smooth(reward_data):
     return y_smooth
 
 def main():
-    num_trials = 4
-    source_episodes = 250
-    total_episodes = 700
+    num_trials = 1
+    source_episodes = 400
+    total_episodes = 800
 
-    source_mdp = SvetlikGridWorldEnvironments.source_maze()
-    target_mdp = SvetlikGridWorldEnvironments.target_maze()
+    source_mdp = SvetlikGridWorldEnvironments.source_1010()
+    target_mdp = SvetlikGridWorldEnvironments.target_1010()
 
-    # _, reward_source_source = reward_by_episode(source_mdp, total_episodes, num_trials=num_trials)
+    _, reward_source_source = reward_by_episode(source_mdp, total_episodes, num_trials=num_trials)
     _, reward_target_target = reward_by_episode(target_mdp, total_episodes, num_trials=num_trials)
     reward_transfer_source, reward_transfer_target = reward_by_episode(
         target_mdp, total_episodes, num_trials=num_trials,
@@ -230,13 +230,13 @@ def main():
     x_source = range(source_episodes)
     x_target = range(source_episodes, total_episodes)
     x_total = range(total_episodes)
-    # y0 = clip_and_smooth(reward_source_source)
+    y0 = clip_and_smooth(reward_source_source)
     y1 = clip_and_smooth(reward_target_target)
     y2 = clip_and_smooth(reward_transfer_target)
     y3 = clip_and_smooth(reward_transfer_source)
 
     fig, ax = plt.subplots()
-    # ax.plot(x_total, y0, color='green', linestyle='--', label="no transfer (source)")
+    ax.plot(x_total, y0, color='green', linestyle='--', label="no transfer (source)")
     ax.plot(x_total, y1, color='red', label="no transfer (target)")
     ax.plot(x_target, y2, color='blue', label="transfer (target)")
     ax.plot(x_source, y3, color='blue', linestyle='--', label="transfer (source)")

@@ -18,7 +18,7 @@ class SvetlikGridWorldMDP(GridWorldMDP):
                 width=5,
                 height=3,
                 init_loc=(1, 1),
-                empty_reward=-1,
+                default_reward=-1,
                 next_to_fire_reward=-250,
                 fire_reward=-500,
                 pit_reward=-2500,
@@ -42,7 +42,7 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         self.pit_locs = pit_locs
         self.treasure_locs = treasure_locs
         self.init_state = self.get_state(init_loc[0], init_loc[1])
-        self.empty_reward = empty_reward
+        self.default_reward = default_reward
         self.next_to_fire_reward = next_to_fire_reward
         self.fire_reward = fire_reward
         self.pit_reward = pit_reward
@@ -81,8 +81,7 @@ class SvetlikGridWorldMDP(GridWorldMDP):
             (float)
         '''
 
-        reward = 0
-        next_state_loc = next_state.x, next_state.y
+        reward = self.default_reward
 
         if self.state_is_next_to_fire(next_state):
             reward += self.next_to_fire_reward
@@ -92,8 +91,6 @@ class SvetlikGridWorldMDP(GridWorldMDP):
             reward += self.pit_reward
         elif self.state_is_treasure(next_state):
             reward += self.treasure_reward
-        else:
-            reward += self.empty_reward
 
         return reward
 

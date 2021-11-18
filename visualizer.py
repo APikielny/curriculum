@@ -4,9 +4,7 @@ from simple_rl.tasks.grid_world.GridWorldStateClass import GridWorldState
 from svetlik_gridworld import SvetlikGridWorldMDP
 from matplotlib import pyplot as plt
 
-def show_gridworld_q_func(q_learner: QLearningAgent,
-                          gw: SvetlikGridWorldMDP,
-                          filename=None):
+def show_gridworld_q_func(gw: SvetlikGridWorldMDP, q_learner: QLearningAgent=None, filename=None):
     """Visualize q function + optimal policy in a SvetlikGridWorldMDP environment"""
     q_vals = np.zeros((gw.height, gw.width))
     for x_idx in range(gw.height):
