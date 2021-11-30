@@ -5,14 +5,16 @@ import random
 import numpy
 import time
 from collections import defaultdict
+from typing import List
 
 # Other imports.
 from simple_rl.agents.AgentClass import Agent
+from svetlik_gridworld import SvetlikGridWorldMDP
 
 class QLearningAgent(Agent):
     ''' Implementation for a Q Learning Agent '''
 
-    def __init__(self, actions, name="Q-learning", alpha=0.1, gamma=0.99, epsilon=0.1, explore="uniform", anneal=False):
+    def __init__(self, actions, name="Q-learning", alpha=0.1, gamma=0.99, epsilon=0.1, explore="uniform", anneal=False, q_function=None):
         '''
         Args:
             actions (list): Contains strings denoting the actions.
@@ -33,12 +35,31 @@ class QLearningAgent(Agent):
         self.default_q = 0 #1 / (1 - self.gamma)
         self.explore = explore
 
-        # Q Function:
-        self.q_func = defaultdict(lambda : defaultdict(lambda: self.default_q))
-        # Key: state
-        # Val: dict
-            #   Key: action
-            #   Val: q-value
+        if q_function is None:
+            # Q Function:
+            self.q_func = defaultdict(lambda : defaultdict(lambda: self.default_q))
+            # Key: state
+            # Val: dict
+                #   Key: action
+                #   Val: q-value
+        else:
+            self.q_func = q_function
+
+    @staticmethod
+    def defaultdict_q():
+        return defaultdict(float)
+
+    @staticmethod
+    def combine_q_functions(source_q_functions: List[dict], source_mdps: List[SvetlikGridWorldMDP], target_mdp: SvetlikGridWorldMDP) -> dict:
+        q_func = defaultdict(QLearningAgent.defaultdict_q)
+
+        if len(source_q_functions) == 1:
+            q_func = source_q_functions[0]
+
+        else:
+            pass
+
+        return q_func
 
 
     def get_parameters(self):
