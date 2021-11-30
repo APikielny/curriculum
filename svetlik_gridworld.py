@@ -1,43 +1,41 @@
 #!/usr/bin/env python
 
 # Python imports.
-from collections import defaultdict
 import sys
+import math
 
 # Other imports.
 from simple_rl.tasks.grid_world.GridWorldMDPClass import GridWorldMDP
 from simple_rl.tasks.grid_world.GridWorldStateClass import GridWorldState
-# from simple_rl.run_experiments import run_agents_on_mdp
-from typing import Tuple
+from typing import Tuple, List
 
 class SvetlikGridWorldMDP(GridWorldMDP):
     def __init__(self,
-                fire_locs=[],
-                pit_locs=[],
-                treasure_locs=[(5, 3)],
-                width=5,
-                height=3,
-                init_loc=(1, 1),
-                default_reward=-1,
-                next_to_fire_reward=-250,
-                fire_reward=-500,
-                pit_reward=-2500,
-                treasure_reward=200):
-        '''
-        Args:
-            fire_locs (list of tuples)
-            pit_locs (list of tuples)
-            treasure_locs (list of tuples)
-            width (int)
-            height (int)
-            init_loc (tuple)
-        '''
+                 fire_locs: List[Tuple[int, int]] = [],
+                 pit_locs: List[Tuple[int, int]] = [],
+                 treasure_locs: List[Tuple[int, int]] = [(5, 3)],
+                 width: int = 5,
+                 height: int = 3,
+                 init_loc: Tuple[int, int] = (1, 1),
+                 rand_init: bool = False,
+                 default_reward: int = -1,
+                 next_to_fire_reward: int = -250,
+                 fire_reward: int = -500,
+                 pit_reward: int = -2500,
+                 treasure_reward: int = 200,
+                 x_limit: Tuple[int, int] = (-math.inf, math.inf),
+                 y_limit: Tuple[int, int] = (-math.inf, math.inf)):
+        """
+        :param x_limit: range of x values, defaults to (1, width + 1). inclusive lower, exclusive upper
+        :param y_limit: range of y values, defaults to (1, height + 1). inclusive lower, exclusive upper
+        """
+        goal_locs = pit_locs + treasure_locs
         GridWorldMDP.__init__(self,
                               width,
                               height,
                               init_loc=init_loc,
-                              goal_locs=pit_locs + treasure_locs)
-
+                              rand_init=rand_init,
+                              goal_locs=goal_locs)
         self.fire_locs = fire_locs
         self.pit_locs = pit_locs
         self.treasure_locs = treasure_locs
@@ -47,6 +45,31 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         self.fire_reward = fire_reward
         self.pit_reward = pit_reward
         self.treasure_reward = treasure_reward
+        self.x_limit = max(1, x_limit[0]), min(width + 1, x_limit[1])
+        self.y_limit = max(1, y_limit[0]), min(height + 1, y_limit[1])
+
+        for x, y in goal_locs:
+            self.get_state(x, y).set_terminal(True)
+
+    def subgrid(self, x_lim, y_lim):
+        """Returns a sub-gridworld. Note that
+        - width and height are no longer accurate
+        - features are NO LONGER GUARANTEED TO BE ON THE GRID!
+        - initial location is now random"""
+        return SvetlikGridWorldMDP(
+            fire_locs=self.fire_locs,
+            pit_locs=self.pit_locs,
+            treasure_locs=self.treasure_locs,
+            width=self.width,
+            height=self.height,
+            rand_init=True,
+            default_reward=self.default_reward,
+            next_to_fire_reward=self.next_to_fire_reward,
+            fire_reward=self.fire_reward,
+            pit_reward=self.pit_reward,
+            treasure_reward=self.treasure_reward,
+            x_limit=x_lim,
+            y_limit=y_lim)
 
     def get_state(self, x, y):
         return GridWorldState(x=x, y=y)
@@ -116,21 +139,26 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         else:
             next_state = self.get_state(state.x, state.y)
 
-        if self.state_is_goal(next_state):
-            next_state.set_terminal(True)
+        # clamp state to limits
+        clamped_x = max(self.x_limit[0], min(self.x_limit[1] - 1, next_state.x))
+        clamped_y = max(self.y_limit[0], min(self.y_limit[1] - 1, next_state.y))
+        clamped_next_state = self.get_state(clamped_x, clamped_y)
 
-        return next_state
+        if self.state_is_goal(clamped_next_state):
+            clamped_next_state.set_terminal(True)
+
+        return clamped_next_state
+
 
 def main(open_plot=True):
-
-
-    # Setup MDP, Agents.
+    # Set up MDP, Agents.
     mdp = SvetlikGridWorldMDP(pit_locs=[(2, 2), (4, 2)], width=10, height=10, treasure_locs=[(10, 10)])
     ql_agent = QLearningAgent(actions=mdp.get_actions())
     rand_agent = RandomAgent(actions=mdp.get_actions())
 
     # Run experiment and make plot.
     # run_agents_on_mdp([ql_agent], mdp, instances=10, episodes=500, steps=40, open_plot=open_plot, cumulative_plot=False)
+
 
 if __name__ == "__main__":
     main(open_plot=not sys.argv[-1] == "no_plot")

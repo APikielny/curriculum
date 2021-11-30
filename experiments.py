@@ -1,6 +1,7 @@
 import sys
 import time
 import multiprocessing
+from collections import defaultdict
 
 from agent import QLearningAgent
 from svetlik_gridworld import SvetlikGridWorldMDP
@@ -11,9 +12,11 @@ import math
 from scipy.interpolate import make_interp_spline, BSpline
 from visualizer import show_gridworld_q_func
 
+REWARD_SAMPLING_RATE = 100  # number of steps between each reward sample
+
 def get_policy_reward(policy, mdp, steps):
     """
-    Gets the value of rolling out a deterministic policy
+    Gets the value of rolling out a policy with epsilon = 0
     """
     state = mdp.get_init_state()
     gamma = mdp.get_gamma()
@@ -31,7 +34,17 @@ def get_policy_reward(policy, mdp, steps):
     return total_reward
 
 
-def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbose=False, track_disc_reward=False, reset_at_terminal=False, resample_at_terminal=False):
+def run_single_agent_on_mdp(
+        agent,
+        mdp,
+        episodes,
+        steps,
+        experiment=None,
+        verbose=False,
+        track_disc_reward=False,
+        reset_at_terminal=False,
+        resample_at_terminal=False,
+        reward_threshold_termination=math.inf):
     '''
     Summary:
         Main loop of a single MDP experiment.
@@ -45,10 +58,16 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
     value_per_episode = [0] * episodes
     gamma = mdp.get_gamma()
 
-    off_policy_val_per_episode = [0] * episodes
+    total_step_counter = 0
+    off_policy_val_per_step = {}
 
     # For each episode.
     for episode in range(1, episodes + 1):
+        rwd = get_policy_reward(agent.get_max_q_action, mdp, steps)
+        if rwd > reward_threshold_termination:
+            print(f"rwd {rwd} above {reward_threshold_termination}")
+            off_policy_val_per_step[total_step_counter] = rwd
+            break
 
         cumulative_episodic_reward = 0
 
@@ -109,6 +128,12 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
             # Update pointer.
             state = next_state
 
+            # update reward data
+            total_step_counter += 1
+            if total_step_counter % REWARD_SAMPLING_RATE == 0:
+                off_policy_val_per_step[total_step_counter] = (
+                    get_policy_reward(agent.get_max_q_action, mdp, steps))
+
         # A final update.
         action = agent.act(state, reward)
 
@@ -119,9 +144,6 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
         # Reset the MDP, tell the agent the episode is over.
         mdp.reset()
         agent.end_of_episode()
-
-        # separately, keep track of off-policy reward
-        off_policy_val_per_episode[episode - 1] = get_policy_reward(agent.get_max_q_action, mdp, steps)
 
         if verbose:
             print("\n")
@@ -134,7 +156,7 @@ def run_single_agent_on_mdp(agent, mdp, episodes, steps, experiment=None, verbos
     if steps >= 2000:
         print("\tLast episode reward:", cumulative_episodic_reward)
 
-    return False, steps, value_per_episode, off_policy_val_per_episode
+    return False, steps, value_per_episode, off_policy_val_per_step, total_step_counter
 
 def run_agent_mdp(target_mdp,
                   total_episodes,
@@ -142,30 +164,45 @@ def run_agent_mdp(target_mdp,
                   source_reward_dict,
                   target_reward_dict,
                   index,
-                  source_mdp=None,
-                  source_episodes=0):
+                  source_mdp,
+                  source_episodes,
+                  source_reward_threshold_termination):
     ql_agent = QLearningAgent(actions=target_mdp.get_actions())
     print(f'running agent {index}')
 
+    source_value_per_step = {}
+    target_value_per_step = {}
+    total_steps_source = 0
+
     # source learning
-    source_value_per_episode = [-math.inf for i in range(source_episodes)]
-    if source_mdp:
-        res_src = run_single_agent_on_mdp(ql_agent, source_mdp, source_episodes, steps, None)
+    if source_mdp is not None:
+        res_src = run_single_agent_on_mdp(
+            ql_agent,
+            source_mdp,
+            source_episodes,
+            steps,
+            reward_threshold_termination=source_reward_threshold_termination)
         show_gridworld_q_func(source_mdp, ql_agent, filename="figures/vis_source.png")
-        source_value_per_episode = res_src[3]
+        source_value_per_step = res_src[3]  # off policy
+        total_steps_source = res_src[4]
 
     # target learning
-    res_targ = run_single_agent_on_mdp(ql_agent, target_mdp, total_episodes - source_episodes, steps, None)
+    res_targ = run_single_agent_on_mdp(
+        ql_agent,
+        target_mdp,
+        total_episodes - source_episodes,
+        steps)
     show_gridworld_q_func(target_mdp, ql_agent, filename="figures/vis_target.png")
-    target_value_per_episode = res_targ[3]  # off policy
+    target_value_per_step = {k + total_steps_source: v for k, v in res_targ[3].items()}
 
-    source_reward_dict[index] = source_value_per_episode
-    target_reward_dict[index] = target_value_per_episode
+    source_reward_dict[index] = source_value_per_step
+    target_reward_dict[index] = target_value_per_step
 
 def reward_by_episode(target_mdp,
                       total_episodes,
                       source_mdp=None,
                       source_episodes=0,
+                      source_reward_threshold_termination=math.inf,
                       num_trials=1,
                       max_steps=200):
     """Runs Q learning, reports data on [expected reward of optimal policy] vs. episode"""
@@ -177,8 +214,10 @@ def reward_by_episode(target_mdp,
     source_reward_dict = manager.dict()
     target_reward_dict = manager.dict()
 
-    source_reward_at_episode = np.zeros(source_episodes)
-    target_reward_at_episode = np.zeros(total_episodes - source_episodes)
+    # source_reward_at_episode = np.zeros(source_episodes)
+    # target_reward_at_episode = np.zeros(total_episodes - source_episodes)
+    source_reward_at_step = defaultdict(float)
+    target_reward_at_step = defaultdict(float)
 
     for i in range(num_trials):
         p = multiprocessing.Process(target=run_agent_mdp, name=f'agent{i}', args=(
@@ -189,18 +228,22 @@ def reward_by_episode(target_mdp,
             target_reward_dict,
             i,
             source_mdp,
-            source_episodes))
+            source_episodes,
+            source_reward_threshold_termination))
         jobs.append(p)
         p.start()
 
     for i in range(len(jobs)):
         jobs[i].join()
-        source_reward_at_episode[:len(source_reward_dict[i])] += np.array(source_reward_dict[i]) / num_trials
-        target_reward_at_episode[:len(target_reward_dict[i])] += np.array(target_reward_dict[i]) / num_trials
+        if num_trials > 1:
+            raise ValueError("oops, can't average anymore (tell Jackson to fix this)")
+        else:
+            source_reward_at_step = source_reward_dict[i]
+            target_reward_at_step = target_reward_dict[i]
 
     print(time.time() - start)
 
-    return source_reward_at_episode, target_reward_at_episode
+    return source_reward_at_step, target_reward_at_step
 
 def clip_and_smooth(reward_data):
     n_episodes = len(reward_data)
@@ -215,32 +258,37 @@ def clip_and_smooth(reward_data):
 
 def main():
     num_trials = 1
-    source_episodes = 400
+    source_episodes = 250
     total_episodes = 800
 
-    source_mdp = SvetlikGridWorldEnvironments.source_1010()
     target_mdp = SvetlikGridWorldEnvironments.target_1010()
+    source_mdp = target_mdp.subgrid((6, 11), (6, 11))
 
-    _, reward_source_source = reward_by_episode(source_mdp, total_episodes, num_trials=num_trials)
-    _, reward_target_target = reward_by_episode(target_mdp, total_episodes, num_trials=num_trials)
+    #_, reward_source_source = reward_by_episode(source_mdp, total_episodes, num_trials=num_trials)
+    _, reward_target_target = reward_by_episode(
+        target_mdp, total_episodes, num_trials=num_trials)
     reward_transfer_source, reward_transfer_target = reward_by_episode(
         target_mdp, total_episodes, num_trials=num_trials,
         source_mdp=source_mdp, source_episodes=source_episodes)
 
-    x_source = range(source_episodes)
-    x_target = range(source_episodes, total_episodes)
-    x_total = range(total_episodes)
-    y0 = clip_and_smooth(reward_source_source)
-    y1 = clip_and_smooth(reward_target_target)
-    y2 = clip_and_smooth(reward_transfer_target)
-    y3 = clip_and_smooth(reward_transfer_source)
+    # x_source = range(source_episodes)
+    # x_target = range(source_episodes, total_episodes)
+    # x_total = range(total_episodes)
+
+    x1, y1 = zip(*reward_target_target.items())
+    x2, y2 = zip(*reward_transfer_target.items())
+    x3, y3 = zip(*reward_transfer_source.items())
+    #y0 = clip_and_smooth(reward_source_source)
+    # y1 = clip_and_smooth(reward_target_target)
+    # y2 = clip_and_smooth(reward_transfer_target)
+    # y3 = clip_and_smooth(reward_transfer_source)
 
     fig, ax = plt.subplots()
-    ax.plot(x_total, y0, color='green', linestyle='--', label="no transfer (source)")
-    ax.plot(x_total, y1, color='red', label="no transfer (target)")
-    ax.plot(x_target, y2, color='blue', label="transfer (target)")
-    ax.plot(x_source, y3, color='blue', linestyle='--', label="transfer (source)")
-    ax.legend()
+    #ax.plot(x_total, y0, color='green', linestyle='--', label="no transfer (source)")
+    ax.plot(x1, clip_and_smooth(y1), color='red', label="no transfer (target)")
+    ax.plot(x2, clip_and_smooth(y2), color='blue', label="transfer (target)")
+    ax.plot(x3, clip_and_smooth(y3), color='blue', linestyle='--', label="transfer (source)")
+    ax.legend(loc="upper left")
     plt.savefig("figures/reward.png")
     plt.show()
 
