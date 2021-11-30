@@ -135,7 +135,7 @@ def run_single_agent_on_mdp(
 
     return False, steps, value_per_episode, off_policy_val_per_step, total_step_counter
 
-def average_val_per_step(val_per_step_dicts, total_steps, sampling_rate=500):
+def average_val_per_step(val_per_step_dicts, total_steps, sampling_rate=50):
     '''
     Average the results of multiple trials
     '''
@@ -454,11 +454,18 @@ def main_curriculum():
     num_trials = 1
 
     target_mdp = SvetlikGridWorldEnvironments.target_1010()
-    source_mdp = target_mdp.subgrid((6, 11), (6, 11))
+    source1_mdp = target_mdp.subgrid((8, 11), (6, 11))
+    source2_mdp = target_mdp.subgrid((6, 11), (8, 11))
 
     curriculum1 = {
-        'source_transfer': {
-            'task': source_mdp,
+        'source1_transfer': {
+            'task': source1_mdp,
+            'episodes': 250,
+            'reward_threshold_termination': math.inf,
+            'sources': []
+        },
+        'source2_transfer': {
+            'task': source2_mdp,
             'episodes': 250,
             'reward_threshold_termination': math.inf,
             'sources': []
@@ -467,7 +474,7 @@ def main_curriculum():
             'task': target_mdp,
             'episodes': 800,
             'reward_threshold_termination': math.inf,
-            'sources': ['source_transfer']
+            'sources': ['source1_transfer', 'source2_transfer']
         }
     }
 
