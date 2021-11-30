@@ -402,8 +402,28 @@ def main():
     plt.show()
 
 
-def gap(result_1, result_2):
-    return -1
+def gap(reward_with_transfer, reward_no_transfer):
+    """
+    Calculate difference in training steps to learn threshold with and without transfer
+    :param reward_with_transfer: A list of reward per step on target with transfer
+    :param reward_no_transfer: A list of reward per step on target without transfer
+    :return: Difference in training steps to threshold
+    """
+    threshold = max(reward_no_transfer) / 2
+    steps_with_transfer = 0
+    for reward in reward_with_transfer:
+        if reward >= threshold:
+            break
+        else:
+            steps_with_transfer += 1
+    steps_no_transfer = 0
+    for reward in reward_no_transfer:
+        if reward >= threshold:
+            break
+        else:
+            steps_no_transfer += 1
+    return steps_no_transfer - steps_with_transfer
+
 
 #experiment to measure how size of source grid effects "gap" ie how far is transferred learning vs. no transfer
 #target is always the same
