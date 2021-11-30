@@ -401,6 +401,55 @@ def main():
     plt.savefig("figures/reward.png")
     plt.show()
 
+
+def gap(result_1, result_2):
+    return -1
+
+#experiment to measure how size of source grid effects "gap" ie how far is transferred learning vs. no transfer
+#target is always the same
+def gap_by_src_grid_size():
+    num_trials = 1
+    target_mdp = SvetlikGridWorldEnvironments.target_1010()
+
+    curriculum_no_transfer = {
+        'target_no_transfer': {
+            'task': target_mdp,
+            'episodes': 800,
+            'reward_threshold_termination': math.inf,
+            'sources': []
+        }
+    }
+    no_transfer_result = run_agent_curriculum(curriculum_no_transfer, num_trials=num_trials)
+
+    grid_min = 1
+    grid_max = 11
+    dims = [dim for dim in range(grid_min, grid_max)] #for plot
+    gaps = []
+    for dim in range(grid_min, grid_max):
+        source_mdp = target_mdp.subgrid((dim, 11), (dim, 11))
+        curriculum1 = {
+            'source_transfer': {
+                'task': source_mdp,
+                'episodes': 250,
+                'reward_threshold_termination': math.inf,
+                'sources': []
+            },
+            'target_transfer': {
+                'task': target_mdp,
+                'episodes': 800,
+                'reward_threshold_termination': math.inf,
+                'sources': ['source_transfer']
+            }
+        }
+        result = run_agent_curriculum(curriculum1, num_trials=num_trials)
+        #get gap to no transfer curriculum
+
+        gaps.append(gap(result, no_transfer_result))
+        #add to list or something?
+
+    #plot list of gaps
+    #x axis should be size of subgrid
+
 def main_curriculum():
     num_trials = 1
 
