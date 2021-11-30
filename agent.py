@@ -57,7 +57,18 @@ class QLearningAgent(Agent):
             q_func = source_q_functions[0]
 
         else:
-            pass
+            state_set = set()
+            for source_q_function in source_q_functions:
+                state_set |= set(source_q_function.keys())
+
+            for state in state_set:
+                for action in target_mdp.get_actions():
+                    count = 0
+                    for source_q_function in source_q_functions:
+                        if source_q_function[state][action] != 0:
+                            q_func[state][action] += source_q_function[state][action]
+                            count += 1
+                    q_func[state][action] /= count
 
         return q_func
 
