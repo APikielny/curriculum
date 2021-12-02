@@ -68,7 +68,7 @@ class QLearningAgent(Agent):
                         if source_q_function[state][action] != 0:
                             q_func[state][action] += source_q_function[state][action]
                             count += 1
-                    q_func[state][action] /= count
+                    q_func[state][action] /= (count if count > 0 else 1)
 
         return q_func
 
