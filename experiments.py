@@ -402,13 +402,29 @@ def main():
     plt.show()
 
 
-def gap(reward_with_transfer, reward_no_transfer):
+def gap(reward_with_transfer_dict, reward_no_transfer_dict):
     """
     Calculate difference in training steps to learn threshold with and without transfer
     :param reward_with_transfer: A list of reward per step on target with transfer
     :param reward_no_transfer: A list of reward per step on target without transfer
     :return: Difference in training steps to threshold
     """
+
+    for task in reward_with_transfer_dict:
+        # print("transfer task", task)
+        if task == "target_transfer":
+            x, reward_with_transfer = zip(*reward_with_transfer_dict[task]['val_per_step'].items())
+            # print('x', x, 'y', y)
+    
+    for task in reward_no_transfer_dict:
+        # print("no transfer task", task)
+        if task == "target_no_transfer":
+            x, reward_no_transfer = zip(*reward_no_transfer_dict[task]['val_per_step'].items())
+            # print('x', x, 'y', y)
+    # print('done iterating')
+
+    
+
     threshold = max(reward_no_transfer) / 2
     steps_with_transfer = 0
     for reward in reward_with_transfer:
@@ -461,14 +477,17 @@ def gap_by_src_grid_size():
                 'sources': ['source_transfer']
             }
         }
+        print("Getting results for source grid size: ", dim, 11)
         result = run_agent_curriculum(curriculum1, num_trials=num_trials)
         #get gap to no transfer curriculum
 
         gaps.append(gap(result, no_transfer_result))
-        #add to list or something?
+        
 
     #plot list of gaps
     #x axis should be size of subgrid
+    plt.plot(dims, gaps)
+    plt.show()
 
 def main_curriculum():
     num_trials = 1
@@ -528,4 +547,5 @@ def main_curriculum():
 
 
 if __name__ == '__main__':
-    main_curriculum()
+    # main_curriculum()
+    gap_by_src_grid_size()
