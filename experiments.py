@@ -423,21 +423,23 @@ def gap(reward_with_transfer_dict, reward_no_transfer_dict):
             # print('x', x, 'y', y)
     # print('done iterating')
 
-    
 
-    threshold = max(reward_no_transfer) / 2
+    threshold = (max(reward_no_transfer) + min(reward_no_transfer)) / 2
+
     steps_with_transfer = 0
-    for reward in reward_with_transfer:
-        if reward >= threshold:
+    for i in range(0, len(reward_with_transfer), 10):
+        if sum(reward_with_transfer[i:i+10]) / 10 >= threshold:
             break
         else:
-            steps_with_transfer += 1
+            steps_with_transfer += 10
+
     steps_no_transfer = 0
-    for reward in reward_no_transfer:
-        if reward >= threshold:
+    for i in range(0, len(reward_no_transfer), 10):
+        if sum(reward_no_transfer[i:i+10]) / 10 >= threshold:
             break
         else:
-            steps_no_transfer += 1
+            steps_no_transfer += 10
+
     return steps_no_transfer - steps_with_transfer
 
 
