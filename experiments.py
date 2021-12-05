@@ -10,6 +10,7 @@ from tqdm import trange
 
 from agent import QLearningAgent
 from svetlik_gridworld import SvetlikGridWorldMDP
+from pursuit_mdp import PursuitMDP
 from environments import SvetlikGridWorldEnvironments
 from visualizer import show_gridworld_q_func
 
@@ -131,7 +132,8 @@ def run_single_agent_on_mdp(
         'val_per_step': off_policy_val_per_step,
     }
 
-    show_gridworld_q_func(mdp, agent, filename=f'figures/vis_{name}.png')
+    if issubclass(type(mdp), SvetlikGridWorldMDP):
+        show_gridworld_q_func(mdp, agent, filename=f'figures/vis_{name}.png')
 
     return False, steps, value_per_episode, off_policy_val_per_step, total_step_counter
 
@@ -491,7 +493,7 @@ def gap_by_src_grid_size():
     plt.plot(dims, gaps)
     plt.show()
 
-def main_curriculum():
+def main_gridworld():
     num_trials = 1
 
     target_mdp = SvetlikGridWorldEnvironments.target_1010()
@@ -543,11 +545,38 @@ def main_curriculum():
         ax.plot(x, clip_and_smooth(y), color=(random(), random(), random()), label=task)
         
     ax.legend(loc="upper left")
-    plt.savefig("figures/reward.png")
+    plt.savefig("figures/reward_gridworld.png")
     plt.show()
 
 
+def main_pursuit():
+    num_trials = 1
+
+    target_mdp = PursuitMDP()
+
+    curriculum1 = {
+        'target_no_transfer': {
+            'task': target_mdp,
+            'episodes': 5000,
+            'reward_threshold_termination': math.inf,
+            'sources': []
+        }
+    }
+
+    results1 = run_agent_curriculum(curriculum1, num_trials=num_trials)
+
+    _, ax = plt.subplots()
+
+    for task in results1:
+        x, y = zip(*results1[task]['val_per_step'].items())
+        ax.plot(x, clip_and_smooth(y), color=(random(), random(), random()), label=task)
+
+    ax.legend(loc="upper left")
+    plt.savefig("figures/reward_pursuit.png")
+    plt.show()
+
 
 if __name__ == '__main__':
-    # main_curriculum()
-    gap_by_src_grid_size()
+    # main_gridworld()
+    # gap_by_src_grid_size()
+    main_pursuit()
