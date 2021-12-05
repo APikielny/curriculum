@@ -45,34 +45,6 @@ class QLearningAgent(Agent):
         else:
             self.q_func = q_function
 
-    @staticmethod
-    def defaultdict_q():
-        return defaultdict(float)
-
-    @staticmethod
-    def combine_q_functions(source_q_functions: List[dict], source_mdps: List[SvetlikGridWorldMDP], target_mdp: SvetlikGridWorldMDP) -> dict:
-        q_func = defaultdict(QLearningAgent.defaultdict_q)
-
-        if len(source_q_functions) == 1:
-            q_func = source_q_functions[0]
-
-        else:
-            state_set = set()
-            for source_q_function in source_q_functions:
-                state_set |= set(source_q_function.keys())
-
-            for state in state_set:
-                for action in target_mdp.get_actions():
-                    count = 0
-                    for source_q_function in source_q_functions:
-                        if source_q_function[state][action] != 0:
-                            q_func[state][action] += source_q_function[state][action]
-                            count += 1
-                    q_func[state][action] /= count
-
-        return q_func
-
-
     def get_parameters(self):
         '''
         Returns:

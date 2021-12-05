@@ -5,12 +5,78 @@ from collections import defaultdict
 import numpy as np
 import math
 from tqdm import trange
+from typing import List, Set, Callable
 
 from agent import QLearningAgent
+from simple_rl.mdp.MDPClass import MDP
+from simple_rl.mdp.StateClass import State
 from svetlik_gridworld import SvetlikGridWorldMDP
 from visualizer import show_gridworld_q_func
 
 REWARD_SAMPLING_RATE = 100  # number of steps between each reward sample
+
+
+def defaultdict_q():
+    return defaultdict(float)
+
+
+def combine_q_functions_mapping(source_q_functions: List[dict],
+                                target_mdp: MDP,
+                                state_mapping_function: Callable[[State], Set[State]]) -> dict:
+    """Combines Q functions via a state-mapping function.
+    Simplifying assumptions (for now):
+    - just one source q function
+    - instead of an action mapping, we just have the identity function"""
+    assert len(source_q_functions) == 1
+    source_q_function = source_q_functions[0]
+
+    def defaultdict_q():
+        return defaultdict(float)
+
+    def f(q_vals: List[float]) -> float:
+        return sum(q_vals) / len(q_vals)
+
+    q_func = defaultdict(defaultdict_q)
+
+    target_state_set = target_mdp.states
+
+    for target_state in target_state_set:
+        source_states = state_mapping_function(target_state)
+        for a in target_mdp.get_actions():
+            source_q_vals = [source_q_function[s][a] for s in source_states]
+            q_func[target_state][a] = f(source_q_vals)
+
+    return q_func
+
+
+def combine_q_functions(source_q_functions: List[dict],
+                        source_mdps: List[MDP],
+                        target_mdp: MDP) -> dict:
+    """Simplifying assumptions (for now):
+    - just one source q function
+    - instead of an action mapping, we just have the identity function"""
+
+    q_func = defaultdict(defaultdict_q)
+
+    if len(source_q_functions) == 1:
+        q_func = source_q_functions[0]
+
+    else:
+        state_set = set()
+        for source_q_function in source_q_functions:
+            state_set |= set(source_q_function.keys())
+
+        for state in state_set:
+            for action in target_mdp.get_actions():
+                count = 0
+                for source_q_function in source_q_functions:
+                    if source_q_function[state][action] != 0:
+                        q_func[state][action] += source_q_function[state][action]
+                        count += 1
+                q_func[state][action] /= count
+
+    return q_func
+
 
 def get_policy_reward(policy, mdp, steps):
     """
@@ -222,7 +288,7 @@ def run_agent_curriculum(curriculum,
                 
                 if ready_to_start and len(active_jobs) < max_num_concurrent_processes:
                     # combine q functions from the source tasks
-                    q_function = QLearningAgent.combine_q_functions(
+                    q_function = combine_q_functions(
                         source_q_functions=source_task_q_functions,
                         source_mdps=source_task_mdps,
                         target_mdp=curriculum[task]['task'])
