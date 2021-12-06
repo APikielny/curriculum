@@ -33,7 +33,10 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         goal_locs = pit_locs + treasure_locs
 
         if rand_init:
-            init_loc = random.choice(range(*x_limit)), random.choice(range(*y_limit))
+            # print("x limit", *x_limit)
+            # print(random.choice(range(int(*x_limit))))
+            init_loc = random.choice(range(int(1, width+1))), random.choice(range(int(1, height+1)))
+            print("init_loc", init_loc)
 
         GridWorldMDP.__init__(self,
                               width,
