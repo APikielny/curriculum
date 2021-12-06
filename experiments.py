@@ -22,29 +22,28 @@ def defaultdict_q():
 
 def combine_q_functions_mapping(source_q_functions: List[dict],
                                 target_mdp: MDP,
-                                state_mapping_function: Callable[[State], Set[State]]) -> dict:
+                                state_mapping: Callable[[State], Set[State]]) -> dict:
     """Combines Q functions via a state-mapping function.
     Simplifying assumptions (for now):
     - just one source q function
     - instead of an action mapping, we just have the identity function"""
-    assert len(source_q_functions) == 1
-    source_q_function = source_q_functions[0]
-
-    def defaultdict_q():
-        return defaultdict(float)
 
     def f(q_vals: List[float]) -> float:
         return sum(q_vals) / len(q_vals)
 
     q_func = defaultdict(defaultdict_q)
 
-    target_state_set = target_mdp.states
+    if source_q_functions:
+        assert len(source_q_functions) == 1
+        source_q_function = source_q_functions[0]
 
-    for target_state in target_state_set:
-        source_states = state_mapping_function(target_state)
-        for a in target_mdp.get_actions():
-            source_q_vals = [source_q_function[s][a] for s in source_states]
-            q_func[target_state][a] = f(source_q_vals)
+        target_state_set = target_mdp.states
+
+        for target_state in target_state_set:
+            source_states = state_mapping(target_state)
+            for a in target_mdp.get_actions():
+                source_q_vals = [source_q_function[s][a] for s in source_states]
+                q_func[target_state][a] = f(source_q_vals)
 
     return q_func
 
@@ -242,7 +241,8 @@ def get_total_source_steps(curriculum, averaged_results, task):
 def run_agent_curriculum(curriculum,
                          num_trials=1,
                          steps=200,
-                         max_num_concurrent_processes=8):
+                         max_num_concurrent_processes=8,
+                         state_mapping=None):
     '''
     Performs Q learning on a curriculum of MDPs. Curriculum format:
     {
@@ -288,10 +288,10 @@ def run_agent_curriculum(curriculum,
                 
                 if ready_to_start and len(active_jobs) < max_num_concurrent_processes:
                     # combine q functions from the source tasks
-                    q_function = combine_q_functions(
+                    q_function = combine_q_functions_mapping(
                         source_q_functions=source_task_q_functions,
-                        source_mdps=source_task_mdps,
-                        target_mdp=curriculum[task]['task'])
+                        target_mdp=curriculum[task]['task'],
+                        state_mapping=state_mapping)
 
                     # start job for current task
                     p = multiprocessing.Process(target=run_single_agent_on_mdp, name=f'{task}_{i}', args=(
@@ -418,13 +418,8 @@ def reward_by_episode(target_mdp,
 
     return source_reward_at_step, target_reward_at_step
 
-def clip_and_smooth(reward_data):
+def clip_and_smooth(reward_data, window=10):
     n_episodes = len(reward_data)
-    x = np.array(list(range(n_episodes)))
-    y = np.clip(reward_data, -500, 500)
-    y_smooth = [0 for _ in y]
-    for i in range(n_episodes):
-        smooth_min = max(0, i - 5)
-        smooth_max = min(n_episodes - 1, i + 5)
-        y_smooth[i] = sum(y[smooth_min:smooth_max]) / (smooth_max - smooth_min)
+    y_clip = np.clip(reward_data, -500, 500)
+    y_smooth = np.convolve(y_clip, np.ones(window) / window, mode='same')
     return y_smooth
