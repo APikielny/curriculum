@@ -76,15 +76,17 @@ class PursuitMDP(MDP):
         self.wall_locs = wall_locs
         self.default_reward = default_reward
 
-        if rand_init:
-            self.init_state = random.choice(self.states)
-        else:
-            self.init_state = PursuitState(init_predator_locs, init_prey_loc)
+        self.init_state = (random.choice(self.states)
+                           if rand_init else
+                           PursuitState(init_predator_locs, init_prey_loc))
 
         self.actions = [PursuitAction(a) for a in list(itertools.product(self.PRIMITIVE_ACTIONS, repeat=num_predators))]
         MDP.__init__(self, self.actions, self._transition_func, self._reward_func,
                      init_state=self.init_state, gamma=gamma)
 
+    def reset(self):
+        self.init_state = random.choice(self.states)
+        super().reset()
 
     @property
     def states(self):
