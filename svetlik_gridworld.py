@@ -3,6 +3,7 @@
 # Python imports.
 import sys
 import math
+import random
 
 # Other imports.
 from simple_rl.tasks.grid_world.GridWorldMDPClass import GridWorldMDP
@@ -30,6 +31,10 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         :param y_limit: range of y values, defaults to (1, height + 1). inclusive lower, exclusive upper
         """
         goal_locs = pit_locs + treasure_locs
+
+        if rand_init:
+            init_loc = random.choice(range(*x_limit)), random.choice(range(*y_limit))
+
         GridWorldMDP.__init__(self,
                               width,
                               height,
@@ -39,7 +44,6 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         self.fire_locs = fire_locs
         self.pit_locs = pit_locs
         self.treasure_locs = treasure_locs
-        self.init_state = self.get_state(init_loc[0], init_loc[1])
         self.default_reward = default_reward
         self.next_to_fire_reward = next_to_fire_reward
         self.fire_reward = fire_reward
