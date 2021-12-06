@@ -42,8 +42,9 @@ def combine_q_functions_mapping(source_q_functions: List[dict],
 
         for target_state in target_state_set:
             source_states = state_mapping(target_state)
+            partial_q_funcs = [source_q_function[s] for s in source_states]
             for a in target_mdp.get_actions():
-                source_q_vals = [source_q_function[s][a] for s in source_states]
+                source_q_vals = [p[a] for p in partial_q_funcs]
                 q_func[target_state][a] = f(source_q_vals)
 
     return q_func
@@ -422,7 +423,6 @@ def reward_by_episode(target_mdp,
     print(time.time() - start)
 
     return source_reward_at_step, target_reward_at_step
-
 
 def clip_and_smooth(reward_data, window=10):
     y_clip = np.clip(reward_data, -500, 500)
