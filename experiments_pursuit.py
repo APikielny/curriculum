@@ -26,7 +26,7 @@ def main_pursuit():
     curriculum1 = {
         'source_transfer': {
             'task': source_mdp,
-            'episodes': 1000,
+            'episodes': 5000,
             'reward_threshold_termination': math.inf,
             'sources': []
         },

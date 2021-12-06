@@ -6,6 +6,7 @@ import numpy as np
 import math
 from tqdm import trange
 from typing import List, Set, Callable
+from scipy.ndimage import uniform_filter1d
 
 from agent import QLearningAgent
 from simple_rl.mdp.MDPClass import MDP
@@ -198,6 +199,7 @@ def run_single_agent_on_mdp(
 
     return False, steps, value_per_episode, off_policy_val_per_step, total_step_counter
 
+
 def average_val_per_step(val_per_step_dicts, total_steps, sampling_rate=50):
     '''
     Average the results of multiple trials
@@ -214,13 +216,15 @@ def average_val_per_step(val_per_step_dicts, total_steps, sampling_rate=50):
             for k in range(keys[j], keys[j + 1]):
                 frac = (k - keys[j]) / (keys[j + 1] - keys[j])
                 val_per_step_array[i, k] = val_per_step_dicts[i][keys[j]] * (1 - frac) + val_per_step_dicts[i][keys[j + 1]] * frac
-    
+
     average_val_per_step_array = np.mean(val_per_step_array, axis=0)
     average_val_per_step_dict = {}
     for i in range(0, total_steps, sampling_rate):
-        sample = average_val_per_step_array[max(0, i - sampling_rate // 2):min(average_val_per_step_array.shape[0] - 1, i + sampling_rate // 2)]
+        sample = average_val_per_step_array[
+                 max(0, i - sampling_rate // 2):min(average_val_per_step_array.shape[0] - 1, i + sampling_rate // 2)]
         average_val_per_step_dict[i] = np.mean(sample)
     return average_val_per_step_dict
+
 
 def get_total_source_steps(curriculum, averaged_results, task):
     '''
@@ -230,7 +234,7 @@ def get_total_source_steps(curriculum, averaged_results, task):
 
     if len(curriculum[task]['sources']) == 0:
         return 0
-    
+
     total = 0
     for source in curriculum[task]['sources']:
         total += get_total_source_steps(curriculum, averaged_results, source) + averaged_results[source]['total_steps']
@@ -285,7 +289,7 @@ def run_agent_curriculum(curriculum,
                     # get list of source task q functions to combine as an initialization for the current task
                     source_task_q_functions.append(results[source_task_job_name]['q_function'])
                     source_task_mdps.append(curriculum[task]['task'])
-                
+
                 if ready_to_start and len(active_jobs) < max_num_concurrent_processes:
                     # combine q functions from the source tasks
                     q_function = combine_q_functions_mapping(
@@ -326,7 +330,7 @@ def run_agent_curriculum(curriculum,
 
     for task in curriculum:
         offset = get_total_source_steps(curriculum, averaged_results, task)
-        averaged_results[task]['val_per_step'] = { k + offset: v for k, v in averaged_results[task]['val_per_step'].items()}
+        averaged_results[task]['val_per_step'] = {k + offset: v for k, v in averaged_results[task]['val_per_step'].items()}
 
     return averaged_results
 
@@ -370,6 +374,7 @@ def run_agent_mdp(target_mdp,
 
     source_reward_dict[index] = source_value_per_step
     target_reward_dict[index] = target_value_per_step
+
 
 def reward_by_episode(target_mdp,
                       total_episodes,
@@ -418,8 +423,8 @@ def reward_by_episode(target_mdp,
 
     return source_reward_at_step, target_reward_at_step
 
+
 def clip_and_smooth(reward_data, window=10):
-    n_episodes = len(reward_data)
     y_clip = np.clip(reward_data, -500, 500)
-    y_smooth = np.convolve(y_clip, np.ones(window) / window, mode='same')
+    y_smooth = uniform_filter1d(y_clip, size=window, mode='nearest')
     return y_smooth

@@ -11,6 +11,7 @@ import copy
 # Other imports.
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from random import randrange
 from simple_rl.mdp.MDPClass import MDP
 from simple_rl.mdp.StateClass import State
 
@@ -50,8 +51,8 @@ class PursuitMDP(MDP):
     PREY_RANDOMNESS = 1.0
 
     def __init__(self,
-                 width: int = 5,
-                 height: int = 5,
+                 width: int = 4,
+                 height: int = 4,
                  num_predators: int = 1,
                  wall_locs: List[Tuple[int, int]] = [],
                  init_predator_locs: List[Tuple[int, int]] = [(0, 0)],
@@ -65,6 +66,12 @@ class PursuitMDP(MDP):
         :param x_limit: range of x values, inclusive -- defaults to (0, width)
         :param y_limit: range of y values, inclusive -- defaults to (0, height)
         """
+        if rand_init:
+            init_predator_locs = [(randrange(width), randrange(height)) for _ in range(num_predators)]
+            init_prey_loc = (randrange(width), randrange(height))
+            while init_prey_loc in init_predator_locs:
+                init_prey_loc = (randrange(width), randrange(height))
+
         self.init_predator_locs = set(init_predator_locs)
         self.init_state = PursuitState(self.init_predator_locs, init_prey_loc)
         self.actions = [PursuitAction(a) for a in list(itertools.product(self.PRIMITIVE_ACTIONS, repeat=num_predators))]
@@ -77,7 +84,6 @@ class PursuitMDP(MDP):
 
         self.wall_locs = wall_locs
         self.init_prey_loc = init_prey_loc
-        self.rand_init = rand_init
         self.default_reward = default_reward
         self.x_limit = max(0, x_limit[0]), min(width - 1, x_limit[1])
         self.y_limit = max(0, y_limit[0]), min(height - 1, y_limit[1])
