@@ -11,10 +11,13 @@ from typing import List
 from simple_rl.agents.AgentClass import Agent
 from svetlik_gridworld import SvetlikGridWorldMDP
 
+def defaultdict_q():
+    return defaultdict(float)
+
 class QLearningAgent(Agent):
     ''' Implementation for a Q Learning Agent '''
 
-    def __init__(self, actions, name="Q-learning", alpha=0.1, gamma=0.99, epsilon=0.1, explore="uniform", anneal=False, q_function=None):
+    def __init__(self, actions, name="Q-learning", alpha=0.1, gamma=0.99, epsilon=0.1, explore="uniform", anneal=False, q_function=None, decay_q_intialization_steps=0):
         '''
         Args:
             actions (list): Contains strings denoting the actions.
@@ -34,16 +37,21 @@ class QLearningAgent(Agent):
         self.anneal = anneal
         self.default_q = 0 #1 / (1 - self.gamma)
         self.explore = explore
+        self.decay_q_initialization_steps = decay_q_intialization_steps
 
         if q_function is None:
             # Q Function:
-            self.q_func = defaultdict(lambda : defaultdict(lambda: self.default_q))
+            self.q_func = defaultdict(defaultdict_q)
             # Key: state
             # Val: dict
                 #   Key: action
                 #   Val: q-value
         else:
             self.q_func = q_function
+
+        if decay_q_intialization_steps != 0:
+            self.init_q_func = self.q_func
+            self.q_func = defaultdict(defaultdict_q)
 
     def get_parameters(self):
         '''
@@ -150,7 +158,7 @@ class QLearningAgent(Agent):
         # Update the Q Function.
         max_q_curr_state = self.get_max_q_value(next_state)
         prev_q_val = self.get_q_value(state, action)
-        self.q_func[state][action] = (1 - self.alpha) * prev_q_val + self.alpha * (reward + self.gamma*max_q_curr_state)
+        self.set_q_value(state, action, (1 - self.alpha) * prev_q_val + self.alpha * (reward + self.gamma*max_q_curr_state))
 
     def _anneal(self):
         # Taken from "Note on learning rate schedules for stochastic optimization, by Darken and Moody (Yale)":
@@ -219,7 +227,16 @@ class QLearningAgent(Agent):
         Returns:
             (float): denoting the q value of the (@state, @action) pair.
         '''
-        return self.q_func[state][action]
+        if self.decay_q_initialization_steps != 0:
+            return self.q_func[state][action] + self.init_q_func[state][action] * max(0, 1 - (self.step_number / self.decay_q_initialization_steps))
+        else:
+            return self.q_func[state][action]
+
+    def set_q_value(self, state, action, new_q_value):
+        if self.decay_q_initialization_steps != 0:
+            self.q_func[state][action] = new_q_value - self.init_q_func[state][action] * max(0, 1 - (self.step_number / self.decay_q_initialization_steps))
+        else:
+            self.q_func[state][action] = new_q_value
 
     def get_action_distr(self, state, beta=0.2):
         '''

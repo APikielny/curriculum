@@ -97,8 +97,8 @@ def main_gridworld():
     num_trials = 1
 
     target_mdp = SvetlikGridWorldEnvironments.target_1010()
-    source1_mdp = target_mdp.subgrid((8, 11), (6, 11))
-    source2_mdp = target_mdp.subgrid((6, 11), (8, 11))
+    source1_mdp = target_mdp.subgrid((6, 11), (6, 11))
+    source2_mdp = target_mdp.subgrid((4, 11), (4, 11))
 
     curriculum1 = {
         'source1_transfer': {
@@ -111,13 +111,13 @@ def main_gridworld():
             'task': source2_mdp,
             'episodes': 250,
             'reward_threshold_termination': math.inf,
-            'sources': []
+            'sources': ['source1_transfer']
         },
         'target_transfer': {
             'task': target_mdp,
             'episodes': 800,
             'reward_threshold_termination': math.inf,
-            'sources': ['source1_transfer', 'source2_transfer']
+            'sources': ['source2_transfer']
         }
     }
 
@@ -151,4 +151,4 @@ def main_gridworld():
 
 if __name__ == '__main__':
     # main_gridworld()
-    gap_by_src_grid_size()
+    main_gridworld()
