@@ -32,11 +32,8 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         """
         goal_locs = pit_locs + treasure_locs
 
-        if rand_init:
-            # print("x limit", *x_limit)
-            # print(random.choice(range(int(*x_limit))))
-            init_loc = random.choice(range(int(1, width+1))), random.choice(range(int(1, height+1)))
-            print("init_loc", init_loc)
+        # if rand_init:
+        #     init_loc = random.choice(range(*x_limit)), random.choice(range(*y_limit))
 
         GridWorldMDP.__init__(self,
                               width,
@@ -52,11 +49,18 @@ class SvetlikGridWorldMDP(GridWorldMDP):
         self.fire_reward = fire_reward
         self.pit_reward = pit_reward
         self.treasure_reward = treasure_reward
-        self.x_limit = max(1, x_limit[0]), min(width + 1, x_limit[1])
-        self.y_limit = max(1, y_limit[0]), min(height + 1, y_limit[1])
+        self.x_limit = int(max(1, x_limit[0])), int(min(width + 1, x_limit[1]))
+        self.y_limit = int(max(1, y_limit[0])), int(min(height + 1, y_limit[1]))
 
         for x, y in goal_locs:
             self.get_state(x, y).set_terminal(True)
+
+    def get_init_state(self, evaluation=True):
+        if self.rand_init and not evaluation:
+            self.cur_state = self.get_state(random.choice(range(*self.x_limit)), random.choice(range(*self.y_limit)))
+            return self.cur_state
+        else:
+            return self.get_state(*self.init_loc)
 
     def subgrid(self, x_lim, y_lim):
         """Returns a sub-gridworld. Note that

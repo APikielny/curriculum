@@ -73,7 +73,8 @@ def combine_q_functions(source_q_functions: List[dict],
                     if source_q_function[state][action] != 0:
                         q_func[state][action] += source_q_function[state][action]
                         count += 1
-                q_func[state][action] /= count
+                if count > 0:
+                    q_func[state][action] /= count
 
     return q_func
 
@@ -115,7 +116,7 @@ def run_single_agent_on_mdp(
     Returns:
         (tuple): (bool:reached terminal, int: num steps taken, list: cumulative discounted reward per episode)
     '''
-    agent = QLearningAgent(mdp.get_actions(), q_function=q_function)
+    agent = QLearningAgent(mdp.get_actions(), q_function=q_function, decay_q_intialization_steps=0)
 
     if reset_at_terminal and resample_at_terminal:
         raise ValueError("(simple_rl) ExperimentError: Can't have reset_at_terminal and resample_at_terminal set to True.")
@@ -137,7 +138,7 @@ def run_single_agent_on_mdp(
         cumulative_episodic_reward = 0
 
         # Compute initial state/reward.
-        state = mdp.get_init_state()
+        state = mdp.get_init_state(False)
         reward = 0
         episode_start_time = time.perf_counter()
 
