@@ -45,8 +45,8 @@ def gap(reward_with_transfer_dict, reward_no_transfer_dict):
     return steps_no_transfer - steps_with_transfer
 
 
-# experiment to measure how size of source grid effects "gap" ie how far is transferred learning vs. no transfer
-# target is always the same
+#experiment to measure how size of source grid effects "gap" ie how far is transferred learning vs. no transfer
+#target is always the same
 def gap_by_src_grid_size():
     num_trials = 1
     target_mdp = SvetlikGridWorldEnvironments.target_1010()
@@ -63,7 +63,7 @@ def gap_by_src_grid_size():
 
     grid_min = 1
     grid_max = 11
-    dims = [dim for dim in range(grid_min, grid_max)]  # for plot
+    dims = [grid_max - dim for dim in range(grid_min, grid_max)] #for plot
     gaps = []
     for dim in range(grid_min, grid_max):
         source_mdp = target_mdp.subgrid((dim, 11), (dim, 11))
@@ -83,15 +83,38 @@ def gap_by_src_grid_size():
         }
         print("Getting results for source grid size: ", dim, 11)
         result = run_agent_curriculum(curriculum1, num_trials=num_trials)
-        # get gap to no transfer curriculum
+        #get gap to no transfer curriculum
 
         gaps.append(gap(result, no_transfer_result))
 
-    # plot list of gaps
-    # x axis should be size of subgrid
-    plt.plot(dims, gaps)
-    plt.show()
+        _, ax = plt.subplots()
+        plt.xlim(0, 35000)
+        plt.ylim(-500, 0)
 
+        t = 0.0
+        for task in result:
+            x, y = zip(*result[task]['val_per_step'].items())
+            ax.plot(x, clip_and_smooth(y), color=(0.0, t, 1.0), label=task)
+            t += 1.0
+
+        for task in no_transfer_result:
+            x, y = zip(*no_transfer_result[task]['val_per_step'].items())
+            ax.plot(x, clip_and_smooth(y), color=(1.0, 0.0, 0.0), label=task)
+            
+        ax.legend(loc="upper left")
+        plt.savefig("figures/reward_source_grid{}.png".format(grid_max - dim))
+        plt.clf()
+        
+
+    #plot list of gaps
+    #x axis should be size of subgrid
+    plt.clf()
+    plt.plot(dims, gaps)
+    plt.xlabel("Source grid dimension")
+    plt.ylabel("Gap: transfer on target task vs. no transfer on target task")
+    plt.title("Transfer Learning Performance With Source Grids from size " + str(dims[-1]) + " to " + str(dims[0]))
+    plt.savefig("figures/gap.png")
+    # plt.show()
 
 def main_gridworld():
     num_trials = 1
