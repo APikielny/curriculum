@@ -116,7 +116,7 @@ def run_single_agent_on_mdp(
     Returns:
         (tuple): (bool:reached terminal, int: num steps taken, list: cumulative discounted reward per episode)
     '''
-    agent = QLearningAgent(mdp.get_actions(), q_function=q_function)
+    agent = QLearningAgent(mdp.get_actions(), q_function=q_function, epsilon=0.1)
 
     if reset_at_terminal and resample_at_terminal:
         raise ValueError("(simple_rl) ExperimentError: Can't have reset_at_terminal and resample_at_terminal set to True.")
@@ -425,6 +425,12 @@ def reward_by_episode(target_mdp,
     return source_reward_at_step, target_reward_at_step
 
 def clip_and_smooth(reward_data, window=10):
-    y_clip = np.clip(reward_data, -500, 500)
-    y_smooth = uniform_filter1d(y_clip, size=window, mode='nearest')
+    n_episodes = len(reward_data)
+    y = np.clip(reward_data, -500, 500)
+    y_smooth = [0 for _ in y]
+    half_window = window // 2
+    for i in range(n_episodes):
+        smooth_min = max(0, i - half_window)
+        smooth_max = min(n_episodes - 1, i + half_window)
+        y_smooth[i] = sum(y[smooth_min:smooth_max]) / (smooth_max - smooth_min)
     return y_smooth
