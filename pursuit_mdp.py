@@ -83,12 +83,15 @@ class PursuitMDP(MDP):
                  rand_init: bool = False,
                  default_reward: int = -1,
                  gamma=0.99,
-                 catch_condition="conjunctive",  # "conjunctive" or "disjunctive"
+                 catch_condition: str = "conjunctive",  # "conjunctive" or "disjunctive"
+                 collision_avoidance: bool = False,
                  x_limit: Tuple[int, int] = (-math.inf, math.inf),
                  y_limit: Tuple[int, int] = (-math.inf, math.inf)):
         """
         :param x_limit: range of x values, inclusive -- defaults to (0, width)
         :param y_limit: range of y values, inclusive -- defaults to (0, height)
+        :param collision_avoidance: if True, predators cannot collide *until the win state*,
+            though predators and prey can always collide. Collision results in no predators moving.
         """
         self.width = width
         self.height = height
@@ -98,6 +101,7 @@ class PursuitMDP(MDP):
         self.wall_locs = wall_locs
         self.default_reward = default_reward
         self.catch_condition = catch_condition
+        self.collision_avoidance = collision_avoidance
 
         self.init_state = (random.choice(self.states)
                            if rand_init else
@@ -121,6 +125,10 @@ class PursuitMDP(MDP):
 
         states = [PursuitState(pred_loc_list, prey_loc)
                   for pred_loc_list in pred_loc_lists for prey_loc in locs]
+
+        if self.collision_avoidance:
+            states = [s for s in states if len(s.predator_locs) == self.num_predators]
+
         return states
 
     def _transition_func(self, state: PursuitState, action: PursuitAction) -> PursuitState:
@@ -134,10 +142,18 @@ class PursuitMDP(MDP):
             raise RuntimeError("Predators list length does not match number of predators")
         if not action.length == self.num_predators:
             raise RuntimeError("Action length does not match number of predators")
+
         new_pred_locs_list = [self._apply_action(l, a)
                               for (l, a) in zip(state.predator_locs_in_order, action.as_list())]
+        new_state = PursuitState(predator_locs=new_pred_locs_list, prey_loc=new_prey_loc)
 
-        return PursuitState(predator_locs=new_pred_locs_list, prey_loc=new_prey_loc)
+        if self.collision_avoidance and (
+                (len(new_pred_locs_list) != self.num_predators)
+                and not new_state.is_terminal(self.catch_condition)):
+            # collision between predators! no predators move
+            return PursuitState(predator_locs=state.predator_locs_in_order, prey_loc=state.prey_loc)
+
+        return new_state
 
     def _apply_action(self, loc: Tuple[int, int], action: PrimitiveAction) -> Tuple[int, int]:
         """Move in specified direction, as long as wall is not there, and clamp"""

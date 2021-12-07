@@ -16,7 +16,8 @@ def main_pursuit():
 
     target_mdp = PursuitMDP(
         num_predators=2,
-        init_predator_locs=[(0, 1), (1, 0)])
+        init_predator_locs=[(0, 1), (1, 0)],
+        collision_avoidance=True)
 
     def state_action_mapping(target_state: PursuitState,
                              target_action: PursuitAction) -> Set[Tuple[PursuitState, PursuitAction]]:
