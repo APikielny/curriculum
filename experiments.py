@@ -5,13 +5,14 @@ from collections import defaultdict
 import numpy as np
 import math
 from tqdm import trange
-from typing import List, Set, Callable
+from typing import List, Set, Callable, Iterable, Tuple
 from scipy.ndimage import uniform_filter1d
 
 from agent import QLearningAgent
 from simple_rl.mdp.MDPClass import MDP
 from simple_rl.mdp.StateClass import State
 from svetlik_gridworld import SvetlikGridWorldMDP
+from pursuit_mdp import PursuitAction
 from visualizer import show_gridworld_q_func
 
 REWARD_SAMPLING_RATE = 100  # number of steps between each reward sample
@@ -23,7 +24,9 @@ def defaultdict_q():
 
 def combine_q_functions_mapping(source_q_functions: List[dict],
                                 target_mdp: MDP,
-                                state_mapping: Callable[[State], Set[State]]) -> dict:
+                                state_action_mapping: Callable[
+                                    [State, PursuitAction],
+                                    Set[Tuple[State, PursuitAction]]]) -> dict:
     """Combines Q functions via a state-mapping function.
     Simplifying assumptions (for now):
     - just one source q function
@@ -41,11 +44,10 @@ def combine_q_functions_mapping(source_q_functions: List[dict],
         target_state_set = target_mdp.states
 
         for target_state in target_state_set:
-            source_states = state_mapping(target_state)
-            partial_q_funcs = [source_q_function[s] for s in source_states]
-            for a in target_mdp.get_actions():
-                source_q_vals = [p[a] for p in partial_q_funcs]
-                q_func[target_state][a] = f(source_q_vals)
+            for target_action in target_mdp.get_actions():
+                source_state_actions = state_action_mapping(target_state, target_action)
+                source_q_vals = [source_q_function[s][a] for s, a in source_state_actions]
+                q_func[target_state][target_action] = f(source_q_vals)
 
     return q_func
 
@@ -116,7 +118,7 @@ def run_single_agent_on_mdp(
     Returns:
         (tuple): (bool:reached terminal, int: num steps taken, list: cumulative discounted reward per episode)
     '''
-    agent = QLearningAgent(mdp.get_actions(), q_function=q_function, epsilon=0.1)
+    agent = QLearningAgent(mdp.get_actions(), q_function=q_function, explore="softmax")
 
     if reset_at_terminal and resample_at_terminal:
         raise ValueError("(simple_rl) ExperimentError: Can't have reset_at_terminal and resample_at_terminal set to True.")
@@ -247,7 +249,7 @@ def run_agent_curriculum(curriculum,
                          num_trials=1,
                          steps=200,
                          max_num_concurrent_processes=8,
-                         state_mapping=None):
+                         state_action_mapping=None):
     '''
     Performs Q learning on a curriculum of MDPs. Curriculum format:
     {
@@ -296,7 +298,7 @@ def run_agent_curriculum(curriculum,
                     q_function = combine_q_functions_mapping(
                         source_q_functions=source_task_q_functions,
                         target_mdp=curriculum[task]['task'],
-                        state_mapping=state_mapping)
+                        state_action_mapping=state_action_mapping)
 
                     # start job for current task
                     p = multiprocessing.Process(target=run_single_agent_on_mdp, name=f'{task}_{i}', args=(

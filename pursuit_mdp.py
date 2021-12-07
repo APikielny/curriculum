@@ -23,12 +23,23 @@ class PursuitAction:
     def __init__(self, action: Tuple[str, ...]):
         self.action = action
 
+    def __hash__(self):
+        return hash(self.action)
+
     @property
     def length(self):
         return len(self.action)
 
     def as_list(self):
         return list(self.action)
+
+    def __eq__(self, other):
+        if not isinstance(other, PursuitAction):
+            return False
+        return self.action == other.action
+
+    def __str__(self):
+        return str(self.action)
 
 
 class PursuitState(State):
@@ -40,11 +51,21 @@ class PursuitState(State):
     def __hash__(self):
         return hash((tuple(sorted(self.predator_locs.items())), self.prey_loc))
 
-    def is_terminal(self):
-        # both predators on top of prey
-        return self.prey_loc in self.predator_locs and len(self.predator_locs) == 1
+    @property
+    def predator_locs_in_order(self) -> List[Tuple[int, int]]:
+        return sorted(k for k, v in self.predator_locs.items() for _ in range(v))
 
-    def __str__(self):
+    def is_terminal(self, catch_condition="disjunctive") -> bool:
+        if catch_condition == "disjunctive":
+            # either predator on top of prey
+            return self.prey_loc in self.predator_locs
+        elif catch_condition == "conjunctive":
+            # both predators on top of prey
+            return self.prey_loc in self.predator_locs and len(self.predator_locs) == 1
+        else:
+            raise ValueError(f"unrecognized catch condition {catch_condition}")
+
+    def __str__(self) -> str:
         return f"<pred locs: {self.predator_locs}, prey_loc: {self.prey_loc}>"
 
 
@@ -62,6 +83,7 @@ class PursuitMDP(MDP):
                  rand_init: bool = False,
                  default_reward: int = -1,
                  gamma=0.99,
+                 catch_condition="conjunctive",  # "conjunctive" or "disjunctive"
                  x_limit: Tuple[int, int] = (-math.inf, math.inf),
                  y_limit: Tuple[int, int] = (-math.inf, math.inf)):
         """
@@ -75,6 +97,7 @@ class PursuitMDP(MDP):
         self.num_predators = num_predators
         self.wall_locs = wall_locs
         self.default_reward = default_reward
+        self.catch_condition = catch_condition
 
         self.init_state = (random.choice(self.states)
                            if rand_init else
@@ -101,7 +124,7 @@ class PursuitMDP(MDP):
         return states
 
     def _transition_func(self, state: PursuitState, action: PursuitAction) -> PursuitState:
-        if state.is_terminal():
+        if state.is_terminal(self.catch_condition):
             return state
 
         new_prey_loc = self._apply_action(state.prey_loc, self.prey_policy(state))
@@ -111,8 +134,8 @@ class PursuitMDP(MDP):
             raise RuntimeError("Predators list length does not match number of predators")
         if not action.length == self.num_predators:
             raise RuntimeError("Action length does not match number of predators")
-        old_predator_locs_list = sorted([k for k, v in state.predator_locs.items() for _ in range(v)])
-        new_pred_locs_list = [self._apply_action(l, a) for (l, a) in zip(old_predator_locs_list, action.as_list())]
+        new_pred_locs_list = [self._apply_action(l, a)
+                              for (l, a) in zip(state.predator_locs_in_order, action.as_list())]
 
         return PursuitState(predator_locs=new_pred_locs_list, prey_loc=new_prey_loc)
 
@@ -141,7 +164,9 @@ class PursuitMDP(MDP):
             return last_x, last_y
 
     def _reward_func(self, state: PursuitState, action: PursuitAction, next_state: PursuitState) -> float:
-        return 0 if state.is_terminal() or next_state.is_terminal() else self.default_reward
+        return (0
+                if state.is_terminal(self.catch_condition) or next_state.is_terminal(self.catch_condition)
+                else self.default_reward)
 
     def prey_policy(self, state: PursuitState) -> str:
         if random.random() < self.PREY_RANDOMNESS:
