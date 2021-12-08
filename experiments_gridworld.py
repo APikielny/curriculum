@@ -4,6 +4,7 @@ from environments import SvetlikGridWorldEnvironments
 import matplotlib.pyplot as plt
 from random import random
 import math
+from experiments import REWARD_SAMPLING_RATE
 
 def gap(reward_with_transfer_dict, reward_no_transfer_dict):
     """
@@ -26,7 +27,8 @@ def gap(reward_with_transfer_dict, reward_no_transfer_dict):
             # print('x', x, 'y', y)
     # print('done iterating')
 
-    threshold = (max(reward_no_transfer) + min(reward_no_transfer)) / 2
+    # threshold = (max(reward_no_transfer) + min(reward_no_transfer)) / 2
+    threshold = -10
 
     steps_with_transfer = 0
     for i in range(0, len(reward_with_transfer), 10):
@@ -109,7 +111,7 @@ def gap_by_src_grid_size():
     #plot list of gaps
     #x axis should be size of subgrid
     plt.clf()
-    plt.plot(dims, gaps)
+    plt.plot(dims, [REWARD_SAMPLING_RATE * gap_val for gap_val in gaps])
     plt.xlabel("Source grid dimension")
     plt.ylabel("Gap: transfer on target task vs. no transfer on target task")
     plt.title("Transfer Learning Performance With Source Grids from size " + str(dims[-1]) + " to " + str(dims[0]))
