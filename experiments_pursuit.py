@@ -19,10 +19,14 @@ def main_pursuit():
         init_predator_locs=[(0, 1), (1, 0)],
         collision_avoidance=True)
 
+    pursuit_size = (source_mdp.width, source_mdp.height)
+
     def state_action_mapping(target_state: PursuitState,
                              target_action: PursuitAction) -> Set[Tuple[PursuitState, PursuitAction]]:
         return set(zip(
-            [PursuitState(predator_locs={loc}, prey_loc=target_state.prey_loc)
+            [PursuitState(world_size=pursuit_size,
+                          predator_locs={loc},
+                          prey_loc=target_state.prey_loc)
              for loc in target_state.predator_locs_in_order],
             [PursuitAction((a,)) for a in target_action.as_list()]))
 

@@ -10,6 +10,7 @@ import copy
 from collections import Counter
 
 # Other imports.
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from random import randrange
@@ -43,13 +44,31 @@ class PursuitAction:
 
 
 class PursuitState(State):
-    def __init__(self, predator_locs: Iterable[Tuple[int, int]], prey_loc: Tuple[int, int]):
+    def __init__(self,
+                 world_size: Tuple[int, int],
+                 predator_locs: Iterable[Tuple[int, int]],
+                 prey_loc: Tuple[int, int]):
+        self.world_size = world_size
         self.predator_locs = Counter(predator_locs)
         self.prey_loc = prey_loc
         State.__init__(self, data=[self.predator_locs, self.prey_loc])
 
     def __hash__(self):
         return hash((tuple(sorted(self.predator_locs.items())), self.prey_loc))
+
+    def tabular(self):
+        """Returns a tabular representation suitable for NNs"""
+        pred_table = np.zeros(self.world_size)
+        prey_table = np.zeros(self.world_size)
+
+        for k, v in self.predator_locs.items():
+            pred_x, pred_y = k
+            pred_table[pred_x][pred_y] = v
+
+        prey_x, prey_y = self.prey_loc
+        prey_table[prey_x][prey_y] = 1
+
+        return np.concatenate((pred_table.flatten(), prey_table.flatten()))
 
     @property
     def predator_locs_in_order(self) -> List[Tuple[int, int]]:
@@ -105,7 +124,7 @@ class PursuitMDP(MDP):
 
         self.init_state = (random.choice(self.states)
                            if rand_init else
-                           PursuitState(init_predator_locs, init_prey_loc))
+                           PursuitState((self.width, self.height), init_predator_locs, init_prey_loc))
 
         self.actions = [PursuitAction(a) for a in list(itertools.product(self.PRIMITIVE_ACTIONS, repeat=num_predators))]
         MDP.__init__(self, self.actions, self._transition_func, self._reward_func,
@@ -123,7 +142,9 @@ class PursuitMDP(MDP):
 
         pred_loc_lists = itertools.product(locs, repeat=self.num_predators)
 
-        states = [PursuitState(pred_loc_list, prey_loc)
+        states = [PursuitState(world_size=(self.width, self.height),
+                               predator_locs=pred_loc_list,
+                               prey_loc=prey_loc)
                   for pred_loc_list in pred_loc_lists for prey_loc in locs]
 
         if self.collision_avoidance:
@@ -145,13 +166,19 @@ class PursuitMDP(MDP):
 
         new_pred_locs_list = [self._apply_action(l, a)
                               for (l, a) in zip(state.predator_locs_in_order, action.as_list())]
-        new_state = PursuitState(predator_locs=new_pred_locs_list, prey_loc=new_prey_loc)
+        new_state = PursuitState(
+            world_size=(self.width, self.height),
+            predator_locs=new_pred_locs_list,
+            prey_loc=new_prey_loc)
 
         if self.collision_avoidance and (
                 (len(new_pred_locs_list) != self.num_predators)
                 and not new_state.is_terminal(self.catch_condition)):
             # collision between predators! no predators move
-            return PursuitState(predator_locs=state.predator_locs_in_order, prey_loc=state.prey_loc)
+            return PursuitState(
+                world_size=(self.width, self.height),
+                predator_locs=state.predator_locs_in_order,
+                prey_loc=state.prey_loc)
 
         return new_state
 
