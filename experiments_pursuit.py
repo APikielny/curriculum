@@ -1,13 +1,15 @@
 from experiments import run_agent_curriculum, clip_and_smooth
 from pursuit_mdp import PursuitMDP, PursuitState, PursuitAction
+import matplotlib
 import matplotlib.pyplot as plt
 from random import random
 import math
+import ipdb
 from typing import Tuple, Set
 
 
 def main_pursuit():
-    num_trials = 1
+    num_trials = 2
 
     source_mdp = PursuitMDP(
         num_predators=1,
@@ -33,13 +35,13 @@ def main_pursuit():
     curriculum1 = {
         'source_transfer': {
             'task': source_mdp,
-            'episodes': 1500,  # 5000
+            'episodes': 2000,  # 1500
             'reward_threshold_termination': math.inf,
             'sources': []
         },
         'target_transfer': {
             'task': target_mdp,
-            'episodes': 2000,  # 8000
+            'episodes': 30000,  # 2000
             'reward_threshold_termination': math.inf,
             'sources': ['source_transfer']
         }
@@ -48,27 +50,30 @@ def main_pursuit():
     curriculum2 = {
         'target_no_transfer': {
             'task': target_mdp,
-            'episodes': 5000,
+            'episodes': 30000,  # 5000
             'reward_threshold_termination': math.inf,
             'sources': []
         }
     }
 
-    results1 = run_agent_curriculum(curriculum1, num_trials=num_trials, state_action_mapping=state_action_mapping)
+    # results1 = run_agent_curriculum(curriculum1, num_trials=num_trials, state_action_mapping=state_action_mapping)
     results2 = run_agent_curriculum(curriculum2, num_trials=num_trials, state_action_mapping=state_action_mapping)
 
-    _, ax = plt.subplots()
+    # _, ax = plt.subplots()
 
-    for task in results1:
-        x, y = zip(*results1[task]['val_per_step'].items())
-        ax.plot(x, clip_and_smooth(y, window=200), color=(random(), random(), random()), label=task)
+    # for task in results1:
+    #     x, y = zip(*results1[task]['val_per_step'].items())
+    #     ax.plot(x, clip_and_smooth(y, window=300), label=task)
 
-    for task in results2:
-        x, y = zip(*results2[task]['val_per_step'].items())
-        ax.plot(x, clip_and_smooth(y, window=200), color=(random(), random(), random()), label=task)
-
-    ax.legend(loc="upper left")
-    plt.savefig("figures/reward_pursuit.png")
+    # for task in results2:
+    #     x, y = zip(*results2[task]['val_per_step'].items())
+    #     ax.plot(x, clip_and_smooth(y, window=200), color=(random(), random(), random()), label=task)
+    #
+    # ax.legend()
+    # loc = matplotlib.ticker.MultipleLocator(base=10000)
+    # ax.xaxis.set_major_locator(loc)
+    # plt.savefig("figures/reward_pursuit.png")
+    ipdb.set_trace()
     # plt.show()
 
 

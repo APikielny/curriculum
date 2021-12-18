@@ -33,7 +33,7 @@ def combine_q_functions_mapping(source_q_functions: List[dict],
     - instead of an action mapping, we just have the identity function"""
 
     def f(q_vals: List[float]) -> float:
-        return sum(q_vals) / len(q_vals)
+        return max(q_vals)
 
     q_func = defaultdict(defaultdict_q)
 
